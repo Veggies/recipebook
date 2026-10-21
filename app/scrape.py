@@ -102,7 +102,12 @@ def _sectioned_steps(raw) -> list[dict]:
             groups.append({"name": name, "steps": []})
         groups[-1]["steps"].append(text)
     groups = [{**g, "steps": [st for st in g["steps"] if st]} for g in groups]
-    return [g for g in groups if g["steps"]]
+    groups = [g for g in groups if g["steps"]]
+    named = [g for g in groups if g["name"]]
+    if len(named) >= 3 and sum(len(g["steps"]) == 1 for g in named) >= 0.75 * len(named):
+        # Nearly every "section" holds one step: these are step titles ("Toast the bread"), not sections.
+        return [{"name": "", "steps": [st for g in groups for st in g["steps"]]}]
+    return groups
 
 
 def _strip_note_refs(text: str) -> str:

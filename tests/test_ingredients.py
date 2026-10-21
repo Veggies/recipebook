@@ -112,3 +112,38 @@ def test_note_reference_after_ingredient_does_not_block_amount():
 def test_ingredient_annotated_once_per_step():
     out = _annotate(["8 oz cream cheese"], ["Beat the cream cheese. Cold cream cheese holds its shape."])
     assert out == ["Beat the cream cheese (8 oz). Cold cream cheese holds its shape."]
+
+
+def test_dish_name_and_headings_not_annotated():
+    out = _annotate(["2 tbsp butter", "6 chicken thighs"],
+                    ["Make Butter Chicken Sauce: melt the butter.", "Brown Chicken Thighs: brown the chicken thighs."])
+    assert out == ["Make Butter Chicken Sauce: melt the butter (2 tbsp).",
+                   "Brown Chicken Thighs: brown the chicken thighs (6)."]
+
+
+def test_amount_with_metric_aside_already_stated():
+    assert _annotate(["2 tbsp garam masala"], ["Add 2 tbsp (24g) garam masala."]) == ["Add 2 tbsp (24g) garam masala."]
+
+
+def test_generic_word_alone_not_matched():
+    assert _annotate(["1 tbsp lemon juice"], ["Add the meat juice."]) == ["Add the meat juice."]
+
+
+def test_to_taste_not_annotated():
+    assert _annotate(["1 tbsp kosher salt"], ["Season to taste with salt."]) == ["Season to taste with salt."]
+    out = _annotate(["2 tbsp sugar", "1 tsp salt"], ["Adjust with more salt, sugar, and lemon to taste. Add the sugar."])
+    assert out == ["Adjust with more salt, sugar, and lemon to taste. Add the sugar (2 tbsp)."]
+
+
+def test_fraction_in_alternative_is_not_a_term():
+    terms = match_terms("fresh thyme (sprigs) OR 1/2 teaspoon dried thyme")
+    assert "1" not in terms and "thyme" in terms
+
+
+def test_canned_is_not_a_can():
+    assert parse_ingredient("4 to 8 ounces canned tomato sauce") == {"amount": "4 to 8 ounces", "item": "canned tomato sauce"}
+
+
+def test_amount_stated_under_another_name_counts():
+    out = _annotate(["2 tbsp ghee or unsalted butter"], ["Add the ghee or butter (2 tbsp)."])
+    assert out == ["Add the ghee or butter (2 tbsp)."]

@@ -95,3 +95,19 @@ def test_aisles(key, aisle):
 def test_parse_amount(amount, expected):
     qty, unit = parse_amount(amount)
     assert (round(qty, 3), unit) == (round(expected[0], 3), expected[1])
+
+
+def test_hyphenated_prep_and_olive_oil_grades_merge():
+    items = flat(build_shopping_list([
+        recipe("A", "1 large carrot, diced", "1 tbsp extra virgin olive oil"),
+        recipe("B", "3 cups medium-diced carrots", "1/4 cup olive oil"),
+    ]))
+    assert items["carrot"]["amount"] == "1 + 3 cups"
+    assert items["olive oil"]["amount"] == "1/3 cup"  # 5 tbsp, rounded to a measuring cup
+
+
+def test_canned_produce_goes_to_pantry_and_quarts():
+    groups = build_shopping_list([recipe("A", "1 (14.5 oz) can diced fire-roasted tomatoes", "3 quarts chicken stock")])
+    pantry = {i["name"]: i for g in groups if g["aisle"] == "Pantry" for i in g["items"]}
+    assert "fire-roasted tomatoes" in pantry
+    assert pantry["chicken stock"]["amount"] == "3 quarts"

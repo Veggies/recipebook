@@ -28,7 +28,8 @@ def tidy_recipe(recipe: dict) -> dict:
     ingredient_groups = recipe.get("ingredient_groups", [])
     step_groups = recipe.get("step_groups", [])
     for group in ingredient_groups + step_groups:
-        group["name"] = (group.get("name") or "").strip().rstrip(":").strip()
+        name = (group.get("name") or "").strip().rstrip(":").strip()
+        group["name"] = name[:1].upper() + name[1:]
     for group in step_groups:
         group["steps"] = [strip_celsius(s) for s in group["steps"]]
     _match_step_group_names(ingredient_groups, step_groups)

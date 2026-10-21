@@ -54,7 +54,7 @@ _IGNORED_WORDS = {
     "chopped", "finely", "coarsely", "roughly", "thinly", "diced", "minced", "sliced", "grated", "shredded",
     "softened", "melted", "cold", "warm", "hot", "boiling", "lukewarm", "room", "temperature", "peeled",
     "halved", "cubed", "trimmed", "rinsed", "drained", "beaten", "sifted", "divided", "about",
-    "approximately", "heaping", "level", "scant", "good", "quality",
+    "approximately", "heaping", "level", "scant", "good", "quality", "extra", "virgin", "extra-virgin",
 }
 _NOT_BOUGHT = {"water", "ice", "ice water"}
 _SERVING_NOTES_RE = re.compile(r",?\s*\b(?:to taste|as needed|for serving|for garnish|to serve)\b", re.IGNORECASE)
@@ -77,13 +77,15 @@ AISLES = [
     ("Dairy & Eggs", ["milk", "butter", "cream", "cheese", "yogurt", "yoghurt", "egg", "buttermilk", "parmesan",
                       "mozzarella", "cheddar", "ricotta", "feta"]),
     ("Meat & Seafood", ["beef", "chicken", "pork", "turkey", "lamb", "bacon", "sausage", "ham", "steak", "mince",
-                        "salmon", "shrimp", "prawn", "fish", "cod", "tilapia", "chorizo"]),
+                        "salmon", "shrimp", "prawn", "fish", "cod", "tilapia", "chorizo", "kielbasa", "pepperoni",
+                        "prosciutto", "pancetta", "roast"]),
     ("Bakery", ["bread", "bun", "tortilla", "roll", "pita", "baguette", "naan"]),
     ("Produce", ["lemon", "lime", "orange", "apple", "banana", "berry", "berrie", "onion", "garlic", "shallot",
                  "scallion", "potato", "tomato", "carrot", "celery", "bell pepper", "capsicum", "jalapeño",
                  "jalapeno", "lettuce", "spinach", "kale", "cabbage", "broccoli", "cauliflower", "zucchini",
                  "cucumber", "mushroom", "avocado", "cilantro", "coriander", "parsley", "basil", "mint", "thyme",
-                 "rosemary", "dill", "ginger", "leek", "squash", "corn", "pear", "peach", "grape"]),
+                 "rosemary", "dill", "ginger", "leek", "squash", "corn", "pear", "peach", "grape", "tomatillo",
+                 "radish", "beet", "chive", "arugula", "romaine", "pepperoncini"]),
     ("Pantry", ["oil", "vinegar", "sauce", "paste", "bean", "rice", "pasta", "noodle", "honey", "syrup",
                 "walnut", "pecan", "almond", "peanut", "cashew", "raisin", "oat", "soy", "mustard", "mayo",
                 "ketchup", "lentil", "chickpea", "chip", "salsa", "nut"]),
@@ -105,6 +107,8 @@ def build_shopping_list(recipes: list[dict]) -> list[dict]:
                     "key": key, "name": entry["name"], "totals": {}, "loose": [], "sources": [],
                     "optional": True, "aisle": aisle_for(key),
                 })
+                if item["aisle"] == "Produce" and re.search(r"\b(?:can|jar|tin)s?\b", entry["amount"]):
+                    item["aisle"] = "Pantry"  # canned tomatoes aren't from the produce aisle
                 item["optional"] &= entry["optional"]
                 if recipe["title"] not in item["sources"]:
                     item["sources"].append(recipe["title"])
@@ -136,7 +140,9 @@ def _shopping_entry(ing: dict) -> dict | None:
         # Unquantified lines are often lists ("Rice, corn chips, tortillas") - keep them whole.
         name = " ".join(_SERVING_NOTES_RE.sub("", re.sub(r"\([^)]*\)|\*", "", item)).split()).lower()
     name = name.split(" / ")[-1]  # "beef mince / ground beef": the American name is usually last
-    words = [w for w in name.replace("’", "'").split() if w not in _IGNORED_WORDS]
+    # "medium-diced", "finely-chopped": hyphenated prep words don't change the purchase either.
+    words = [w for w in name.replace("’", "'").split()
+             if w not in _IGNORED_WORDS and not re.search(r"-(?:diced|chopped|sliced|minced)$", w)]
     while words and words[0] in ("and", "or", "&"):  # "peeled, shredded, and coarsely chopped carrots"
         words.pop(0)
     # "3 garlic cloves" is 3 cloves of garlic, same as "3 cloves garlic".
@@ -208,6 +214,8 @@ def _format_amount(item: dict) -> str:
 
 
 def _fmt_volume(tsp: float) -> str:
+    if tsp >= 384 and (tsp / 192) % 0.25 == 0:  # 2+ quarts, in whole quarters: "3 quarts", not "12 cups"
+        return _fmt_unit(tsp / 192, "quart")
     if tsp >= 12:
         return _fmt_unit(tsp / 48, "cup")
     if tsp >= 3:

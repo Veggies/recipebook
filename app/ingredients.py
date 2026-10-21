@@ -57,7 +57,7 @@ def _alternation(words) -> str:
 
 
 _UNIT = _alternation(UNITS)
-_CONTAINER = r"(?:\s+(?:can|cans|jar|jars|package|packages|tin|tins|carton|cartons|bag|bags))"
+_CONTAINER = r"(?:\s+(?:can|cans|jar|jars|package|packages|tin|tins|carton|cartons|bag|bags)(?![a-z]))"
 _AMOUNT_RE = re.compile(
     rf"^\s*(?P<amount>{_QTY}(?:\s*\([^)]*\))?(?:\s*(?:{_UNIT})\.?(?![a-zA-Z])(?:\s*\([^)]*\))?{_CONTAINER}?)?)"
     rf"\s*(?:of\s+)?(?P<item>.*)$"
@@ -68,7 +68,13 @@ _DUAL_AMOUNT_RE = re.compile(rf"^\s*(?P<a>{_SIMPLE_AMOUNT})\s*/\s*(?P<b>{_SIMPLE
 _METRIC_RE = re.compile(rf"^{_QTY}\s*(?:{_alternation(METRIC_UNITS)})\.?(?![a-zA-Z])")
 # A quantity sitting just before a matched ingredient means the step already
 # states the amount ("add 2 cups flour"), so it shouldn't be annotated again.
-_QTY_BEFORE_RE = re.compile(rf"(?:{_QTY})\s*(?:(?:{_UNIT})\.?\s*)?(?:of\s+)?(?:[\w-]+\s+)?$", re.IGNORECASE)
+_QTY_BEFORE_RE = re.compile(
+    rf"(?:{_QTY})\s*(?:(?:{_UNIT})\.?\s*)?(?:\([^)]*\)\s*)?(?:of\s+)?(?:[\w-]+\s+)?$", re.IGNORECASE
+)
+# "Season to taste with salt": no fixed amount belongs there.
+_TO_TASTE_RE = re.compile(r"to taste", re.IGNORECASE)
+# Words too generic to stand for an ingredient on their own: "the meat juice" isn't the lemon juice.
+GENERIC_TAILS = {"juice", "sauce", "paste", "powder", "mix", "seasoning", "seeds", "leaves", "greens", "zest"}
 # "(2 cups)" right after the ingredient - already annotated, possibly with an older amount.
 # "(Note 2)" doesn't count.
 _AMOUNT_AFTER_RE = re.compile(r"\s*\((?!\s*(?:see\s+)?notes?\b)[^)]*\d", re.IGNORECASE)
@@ -133,6 +139,7 @@ def core_name(item: str) -> str:
     """
     name = re.sub(r"\([^)]*\)|\*", "", item)
     name = re.split(r";| - | for | to taste| plus ", name, maxsplit=1)[0]
+    name = re.sub(r"\s+(?:or|and)\s*$", "", name.strip())
     parts = [p.strip() for p in name.split(",") if p.strip()]
     # Prep words can come first ("peeled, shredded, ..."); take the first part that names something.
     for part in parts:
@@ -154,7 +161,8 @@ def match_terms(item: str) -> list[str]:
     """
     terms: list[str] = []
     # "beef mince / ground beef", "cooking salt / kosher salt", "light or dark brown sugar"
-    for name in re.split(r"\s*/\s*|\s+or\s+", core_name(item)):
+    for name in re.split(r"\s+/\s+|(?<=[a-z])/(?=[a-z])|\s+or\s+", core_name(item)):
+        name = parse_ingredient(name)["item"].lower() if re.match(r"\s*\d", name) else name
         words = [w.strip(".:") for w in name.split() if w.strip(".:")]
         while words and words[-1] in FORM_WORDS and len(words) > 1:
             terms += _tails(words)
@@ -170,7 +178,33 @@ def match_terms(item: str) -> list[str]:
 
 def _tails(words: list[str]) -> list[str]:
     tails = [" ".join(words[i:]) for i in range(len(words))]
-    return [t for t in tails if t.split()[-1] not in DESCRIPTORS and not PREP_WORD_RE.match(t.split()[0])]
+    return [
+        t for t in tails
+        if t.split()[-1] not in DESCRIPTORS and not PREP_WORD_RE.match(t.split()[0])
+        and re.search(r"[a-z]", t) and (len(t.split()) > 1 or t not in GENERIC_TAILS)
+    ]
+
+
+def _sentence_around(text: str, start: int, end: int) -> str:
+    left = max(text.rfind(c, 0, start) for c in ".!?;")
+    rights = [i for i in (text.find(c, end) for c in ".!?;") if i != -1]
+    return text[left + 1:min(rights) if rights else len(text)]
+
+
+def _in_proper_name(text: str, start: int, end: int) -> bool:
+    """True when the match is part of a capitalised name or heading mid-sentence.
+
+    "Make Butter Chicken Sauce:" or "a Glorious Butter Chicken" name the dish, not the
+    butter. A capitalised word next to the match that isn't the start of a sentence gives it away.
+    """
+    if not text[start:start + 1].isupper():
+        return False
+    before = re.search(r"(\S+)\s+$", text[:start])
+    after = re.match(r"\s+(\S+)", text[end:])
+    sentence_start = before is None or before.group(1)[-1] in ".!?:"
+    prev_cap = before is not None and not sentence_start and before.group(1)[:1].isupper()
+    next_cap = after is not None and after.group(1)[:1].isupper()
+    return prev_cap or next_cap
 
 
 def _resolve_in_group(entries: list[tuple]) -> tuple | None:
@@ -231,20 +265,25 @@ def annotate_steps(ingredient_groups: list[dict], step_groups: list[dict]) -> li
             found: list[tuple[int, int, str]] = []
             for term in terms:
                 for m in re.finditer(rf"\b{re.escape(term)}\b", step, re.IGNORECASE):
+                    if _in_proper_name(step, m.start(), m.end()) or _TO_TASTE_RE.search(_sentence_around(step, m.start(), m.end())):
+                        continue
                     if not any(s < m.end() and m.start() < e for s, e, _ in found):
                         found.append((m.start(), m.end(), term))
                         break
-            inserts = []
-            seen_ingredients = set()  # each ingredient gets its amount once per step
-            for start, end, term in sorted(found):  # reading order, so current_group tracks the text
+            # Resolve each mention to an ingredient, in reading order so current_group tracks the text.
+            mentions = []
+            for start, end, term in sorted(found):
                 candidates = amounts_by_term[term]
                 amount, current_group, ii = next((c for c in candidates if c[1] == current_group), candidates[0])
-                if (current_group, ii) in seen_ingredients:
-                    continue
-                seen_ingredients.add((current_group, ii))
-                if _AMOUNT_AFTER_RE.match(step, end) or _QTY_BEFORE_RE.search(step[:start]):
-                    continue
-                inserts.append((end, f" ({short_amount(amount)})"))
+                stated = bool(_AMOUNT_AFTER_RE.match(step, end) or _QTY_BEFORE_RE.search(step[:start]))
+                mentions.append((end, amount, (current_group, ii), stated))
+            # An amount stated under any name ("ghee or butter (2 tbsp)") covers the ingredient.
+            done = {key for _, _, key, stated in mentions if stated}
+            inserts = []
+            for end, amount, key, _ in mentions:
+                if key not in done:  # each ingredient gets its amount once per step
+                    done.add(key)
+                    inserts.append((end, f" ({short_amount(amount)})"))
             for pos, text in reversed(inserts):
                 step = step[:pos] + text + step[pos:]
             new_steps.append(step)

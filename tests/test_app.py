@@ -117,3 +117,13 @@ def test_shopping_list_pages(client):
     page = client.get(f"/shop/list?r={a}&r={b}").text
     assert "<b>2</b> lemons" in page and "water" not in page
     assert client.get(f"/api/shopping-list?r={a}&r={b}").json()[0]["items"][0]["amount"] == "2"
+
+
+def test_one_step_sections_are_step_titles():
+    from app.scrape import _sectioned_steps
+    raw = [{"@type": "HowToStep", "name": n, "text": t} for n, t in
+           [("Slice", "Cut the onions."), ("Cook", "Fry them."), ("Season", "Add salt."), ("Serve", "Ladle it out.")]]
+    raw.append({"@type": "HowToStep", "text": "Enjoy!"})
+    assert _sectioned_steps(raw) == [
+        {"name": "", "steps": ["Cut the onions.", "Fry them.", "Add salt.", "Ladle it out.", "Enjoy!"]}
+    ]
