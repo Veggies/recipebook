@@ -183,6 +183,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .amt::before { content: "("; } .amt::after { content: ")"; }
 .notes { padding: 12px 16px; }
 .notes p { white-space: pre-line; }
+#notes { scroll-margin-top: calc(100px + env(safe-area-inset-top)); }
 .note-editor summary { list-style: none; }
 .note-editor summary::-webkit-details-marker { display: none; }
 .note-editor[open] summary { display: none; }
@@ -190,8 +191,12 @@ button, input, textarea { font: inherit; color: inherit; }
 .button.secondary { background: var(--card); color: var(--tint); font-weight: 600; }
 
 @media (min-width: 900px) {
-  .recipe-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 32px; align-items: start; }
-  .side { position: sticky; top: 56px; max-height: calc(100vh - 72px); overflow-y: auto; }
+  .recipe-layout {
+    display: grid; grid-template-columns: minmax(280px, 380px) 1fr; grid-template-rows: auto 1fr;
+    column-gap: 32px; align-items: start;
+  }
+  .notes-section { grid-column: 2; }
+  .side { grid-row: 1 / span 2; position: sticky; top: 56px; max-height: calc(100vh - 72px); overflow-y: auto; }
 }
 .ahead { box-shadow: inset 3px 0 0 var(--tint); }
 .notes p { margin: 0; padding: 4px 0; }

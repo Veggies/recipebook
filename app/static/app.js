@@ -37,6 +37,7 @@ if (tabs && layout) {
     const current = layout.dataset.tab;
     if (current) scrollPos[current] = window.scrollY;
     layout.dataset.tab = name;
+    document.querySelectorAll('input[name="tab"]').forEach((i) => { i.value = name; });
     buttons.forEach((b) => {
       const on = b.dataset.tab === name;
       b.setAttribute("aria-selected", String(on));
@@ -51,10 +52,13 @@ if (tabs && layout) {
   };
   tabs.hidden = false;
   buttons.forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
-  // "#steps" opens the Steps tab (saving a note returns there); drop it so a reload starts fresh.
-  const initialTab = location.hash === "#steps" ? "steps" : "ingredients";
-  if (location.hash === "#steps") history.replaceState(null, "", location.pathname);
+  // "#steps…" opens the Steps tab; "…notes" scrolls to the notes (where saving a note returns).
+  // The hash is dropped afterwards so a reload starts fresh.
+  const hash = location.hash;
+  const initialTab = hash.startsWith("#steps") ? "steps" : "ingredients";
+  if (hash) history.replaceState(null, "", location.pathname);
   show(initialTab);
+  if (hash.endsWith("notes")) document.getElementById("notes")?.scrollIntoView();
 }
 
 // Keep the screen awake while a recipe is open.

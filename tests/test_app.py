@@ -94,7 +94,9 @@ def test_add_note_from_recipe_page(client):
         "step_groups": [{"name": "", "steps": ["Toast the bread."]}],
     }).json()
     assert "Add a Note" in client.get(f"/r/{created['id']}").text
-    client.post(f"/r/{created['id']}/notes", data={"notes": "Use sourdough.\r\n\r\nButter while hot."})
+    r = client.post(f"/r/{created['id']}/notes", data={"notes": "Use sourdough.\r\n\r\nButter while hot.", "tab": "steps"},
+                    follow_redirects=False)
+    assert r.headers["location"].endswith("#steps-notes")
     saved = client.get(f"/api/recipes/{created['id']}").json()
     assert saved["notes"] == "Use sourdough.\n\nButter while hot."
     assert saved["status"] == "needs_review"

@@ -96,6 +96,10 @@
     </ol>
     {% endfor %}
 
+  </section>
+
+  <!-- One Notes section shared by both tabs: it sits outside them, so it shows under whichever is open. -->
+  <section class="notes-section" id="notes" aria-label="Notes">
     <h2 class="section-h">Notes</h2>
     {% if r.notes %}
     <div class="list notes">
@@ -107,6 +111,7 @@
     <details class="note-editor">
       <summary class="button secondary">{{ "Edit Notes" if r.notes else "Add a Note" }}</summary>
       <form method="post" action="/r/{{ r.id }}/notes">
+        <input type="hidden" name="tab" value="">
         <textarea name="notes" class="editor note-input" placeholder="Swaps, timings, what you'd change next time…">{{ r.notes }}</textarea>
         <button class="button" type="submit">Save Notes</button>
       </form>

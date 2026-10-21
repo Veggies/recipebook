@@ -149,11 +149,12 @@ def edit(request: Request, recipe_id: int, text: str = Form(...), needs_review: 
 
 
 @app.post("/r/{recipe_id}/notes")
-def save_notes(recipe_id: int, notes: str = Form("")):
+def save_notes(recipe_id: int, notes: str = Form(""), tab: str = Form("")):
     recipe = db.get(recipe_id) or _not_found()
     recipe["notes"] = notes.replace("\r\n", "\n").strip()
     db.update(recipe_id, normalize(recipe))
-    return RedirectResponse(f"/r/{recipe_id}#steps", status_code=303)
+    # Back to the tab the note was written from, scrolled to the notes.
+    return RedirectResponse(f"/r/{recipe_id}#{'steps-' if tab == 'steps' else ''}notes", status_code=303)
 
 
 @app.post("/r/{recipe_id}/delete")
