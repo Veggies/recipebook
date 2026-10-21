@@ -136,18 +136,19 @@ body:has(.tabbar) .page { padding-bottom: calc(var(--tabbar-space) + 16px); }
 }
 .large-title { font-size: 34px; font-weight: 700; letter-spacing: .011em; margin: 0 0 12px; line-height: 1.15; }
 
-/* Search & chips */
+/* Search & tags */
 .search input {
   width: 100%; border: 0; border-radius: 10px; padding: 8px 12px 8px 34px;
   background: rgba(118, 118, 128, 0.12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238e8e93' stroke-width='2'%3E%3Ccircle cx='7' cy='7' r='5.5'/%3E%3Cpath d='m11 11 4 4'/%3E%3C/svg%3E") no-repeat 11px center;
   outline: none; -webkit-appearance: none; appearance: none;
 }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0 4px; }
+.filter-row { margin: 12px 4px 0; color: var(--muted); font-size: 15px; }
+.filter-row b { color: var(--text); font-weight: 600; }
+.filter-row a { margin-left: 6px; }
 .chip {
   flex: none; padding: 5px 12px; border-radius: 999px; font-size: 15px;
   background: var(--card); color: var(--text);
 }
-.chip.on { background: var(--tint); color: #fff; }
 
 /* Recipe list: an inset grouped list on phones (like Notes/Reminders), a grid of cards wider. */
 .cards { list-style: none; margin: 16px 0; padding: 0; }

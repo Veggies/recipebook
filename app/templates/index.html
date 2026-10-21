@@ -10,13 +10,8 @@
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
 </form>
 
-{% if tags %}
-<nav class="chips">
-  <a class="chip {% if not tag %}on{% endif %}" href="/?q={{ q|urlencode }}">All</a>
-  {% for t in tags %}
-  <a class="chip {% if t == tag %}on{% endif %}" href="/?q={{ q|urlencode }}&tag={{ t|urlencode }}">{{ t }}</a>
-  {% endfor %}
-</nav>
+{% if tag %}
+<p class="filter-row">Showing: <b>{{ tag }}</b> <a href="/?q={{ q|urlencode }}" aria-label="Clear tag filter">✕</a></p>
 {% endif %}
 
 {% if recipes %}

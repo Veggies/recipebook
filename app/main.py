@@ -119,12 +119,9 @@ def manifest():
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, q: str = "", tag: str = ""):
     recipes = db.list_recipes(q)
-    all_tags = sorted({t for r in recipes for t in r.get("tags", [])})
     if tag:
         recipes = [r for r in recipes if tag in r.get("tags", [])]
-    return templates.TemplateResponse(
-        request, "index.html", {"recipes": recipes, "q": q, "tag": tag, "tags": all_tags}
-    )
+    return templates.TemplateResponse(request, "index.html", {"recipes": recipes, "q": q, "tag": tag})
 
 
 @app.get("/r/{recipe_id}", response_class=HTMLResponse)
