@@ -46,8 +46,8 @@ def to_text(recipe: dict) -> str:
     for group in recipe.get("step_groups", []):
         lines += ["", _header("Steps", group.get("name"))]
         lines += group["steps"]
-    if recipe.get("notes"):
-        lines += ["", "== Notes ==", recipe["notes"]]
+    # Always present, so there's an obvious place to add your own.
+    lines += ["", "== Notes =="] + ([recipe["notes"]] if recipe.get("notes") else [])
     return "\n".join(lines) + "\n"
 
 

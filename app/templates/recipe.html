@@ -67,7 +67,7 @@
         <li>
           <label>
             <input type="checkbox">
-            <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item|link_notes(r) }}</span>
+            <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item }}</span>
           </label>
         </li>
         {% endfor %}
@@ -90,10 +90,10 @@
     {% endfor %}
 
     {% if r.notes %}
-    <h2 class="section-h" id="notes">Notes</h2>
+    <h2 class="section-h">Notes</h2>
     <div class="list notes">
-      {% for anchor, para in r.notes|note_paragraphs %}
-      <p{% if anchor %} id="{{ anchor }}"{% endif %}>{{ para }}</p>
+      {% for para in r.notes|note_paragraphs %}
+      <p>{{ para }}</p>
       {% endfor %}
     </div>
     {% endif %}

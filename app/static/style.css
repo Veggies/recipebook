@@ -186,11 +186,9 @@ button, input, textarea { font: inherit; color: inherit; }
   .side { position: sticky; top: 56px; max-height: calc(100vh - 72px); overflow-y: auto; }
 }
 .ahead { box-shadow: inset 3px 0 0 var(--tint); }
-.note-ref { font-weight: 600; }
 .notes p { margin: 0; padding: 4px 0; }
 .notes p + p { margin-top: 8px; }
-.notes p:target { background: var(--tint-soft); border-radius: 8px; margin: 0 -8px; padding: 4px 8px; }
-[id^="note-"] { scroll-margin-top: 64px; }
+
 .recipe-foot { margin-top: 24px; text-align: center; display: grid; gap: 12px; justify-items: center; }
 .foot-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 

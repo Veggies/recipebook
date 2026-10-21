@@ -74,19 +74,11 @@ def test_step_sections_are_kept():
     ]
 
 
-def test_notes_captured_and_refs_kept():
+def test_blog_notes_not_imported_and_refs_stripped():
     from app.scrape import parse_recipe
-    html = HTML.replace("Add the cumin.", "Add the cumin (Note 1).") + (
-        '<div class="wprm-recipe-notes"><span style="display: block;"><strong>1. Cumin:</strong> Toast it first.</span>'
-        '<div class="wprm-spacer"></div><span style="display: block;">Smoked paprika works too.</span></div>'
+    html = HTML.replace("Add the cumin.", "Add the cumin (Note 1). See Note 2 for options.") + (
+        '<div class="wprm-recipe-notes"><span>1. Cumin: Toast it first.</span></div>'
     )
     recipe = parse_recipe(html, "https://example.com/chili")
-    assert recipe["notes"] == "1. Cumin: Toast it first.\n\nSmoked paprika works too."
-    assert recipe["step_groups"][0]["steps"][1] == "Add the cumin (Note 1)."
-
-
-def test_note_refs_stripped_when_no_notes():
-    from app.scrape import parse_recipe
-    html = HTML.replace("Add the cumin.", "Add the cumin (Note 1). See Note 2 for options.")
-    recipe = parse_recipe(html, "https://example.com/chili")
     assert recipe["step_groups"][0]["steps"][1] == "Add the cumin."
+    assert recipe["notes"] == ""

@@ -60,12 +60,10 @@ async def import_url(url: str) -> tuple[dict, bool]:
 
 
 _PAREN_RE = re.compile(r"\(([^()]+)\)")
-_NOTE_REF_RE = re.compile(r"\bNote (\d+)\b", re.IGNORECASE)
-_NOTE_START_RE = re.compile(r"^(\d+)[.)]\s")
 
 
 def render_step(step: str, recipe: dict) -> Markup:
-    """Highlight ingredient amounts like "(2 cups)" and link "Note 3" to the note."""
+    """Highlight ingredient amounts like "(2 cups)" in step text."""
     amounts = {
         str(escape(a)).lower()
         for g in recipe.get("ingredient_groups", []) for i in g["items"] if i.get("amount")
@@ -75,24 +73,11 @@ def render_step(step: str, recipe: dict) -> Markup:
         lambda m: f'<span class="amt">{m.group(1)}</span>' if m.group(1).lower() in amounts else m.group(0),
         str(escape(step)),
     )
-    return link_notes(Markup(html), recipe)
-
-
-def link_notes(text: str, recipe: dict) -> Markup:
-    html = str(escape(text))
-    if recipe.get("notes"):
-        html = _NOTE_REF_RE.sub(r'<a class="note-ref" href="#note-\1">\g<0></a>', html)
     return Markup(html)
 
 
-def note_paragraphs(notes: str) -> list[tuple[str | None, str]]:
-    """[(anchor id or None, paragraph)] - numbered paragraphs ("3. Slow cooker: ...") get an anchor."""
-    out = []
-    for para in (p.strip() for p in (notes or "").split("\n\n")):
-        if para:
-            m = _NOTE_START_RE.match(para)
-            out.append((f"note-{m.group(1)}" if m else None, para))
-    return out
+def note_paragraphs(notes: str) -> list[str]:
+    return [p.strip() for p in (notes or "").split("\n\n") if p.strip()]
 
 
 def fmt_minutes(minutes) -> str:
@@ -104,7 +89,6 @@ def fmt_minutes(minutes) -> str:
 
 templates.env.filters["step"] = render_step
 templates.env.filters["note_paragraphs"] = note_paragraphs
-templates.env.filters["link_notes"] = link_notes
 templates.env.filters["minutes"] = fmt_minutes
 
 

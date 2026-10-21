@@ -19,8 +19,8 @@ Every recipe must follow these, whether scraped, typed, or written by Claude:
   ("all-purpose flour, sifted"). Keep cues like "softened to room temperature", "thawed", "diced"
   in `item` - the "Before You Start" section is built from them.
 - **American kitchen:** US units first (cups, oz, lb); never Celsius or gas marks (stripped on save).
-- If steps reference "Note 3", the note text must be in `notes` as a paragraph starting "3. ";
-  otherwise remove the reference.
+- **No blog notes.** Don't import a site's notes section, and remove references to it ("Note 3",
+  "see Notes"). `notes` is only for notes the user asks to add.
 - Times are integer minutes. Tags are lowercase.
 
 ## Working with the live recipe list
