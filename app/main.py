@@ -1,12 +1,7 @@
-import hashlib
-import hmac
-import logging
 import os
 import re
-import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -21,21 +16,13 @@ from .prep import before_you_start
 from .tidy import tidy_recipe
 from .scrape import ScrapeError, scrape
 
-log = logging.getLogger("recipebook")
-
 APP_DIR = Path(__file__).parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
-API_TOKEN = os.environ.get("API_TOKEN", "")
-SESSION_COOKIE = "rb_session"
-PUBLIC_PATHS = ("/login", "/static/", "/manifest.webmanifest", "/healthz")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db.init(DATA_DIR / "recipes.db")
-    if not APP_PASSWORD:
-        log.warning("APP_PASSWORD is not set - the site is open to anyone who can reach it.")
     yield
 
 
@@ -44,66 +31,15 @@ app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
 
 
-# --- auth -------------------------------------------------------------------
-
-def _secret() -> bytes:
-    # Kept in the data volume so sessions survive image updates.
-    path = DATA_DIR / "secret.key"
-    if not path.exists():
-        path.write_text(secrets.token_hex(32))
-    return path.read_text().strip().encode()
-
-
-def _session_value() -> str:
-    # Derived from the password, so changing APP_PASSWORD signs everyone out.
-    return hmac.new(_secret(), APP_PASSWORD.encode(), hashlib.sha256).hexdigest()
-
-
-def _is_authed(request: Request) -> bool:
-    if not APP_PASSWORD:
-        return True
-    auth = request.headers.get("authorization", "")
-    if API_TOKEN and auth.startswith("Bearer ") and hmac.compare_digest(auth[7:], API_TOKEN):
-        return True
-    cookie = request.cookies.get(SESSION_COOKIE, "")
-    return hmac.compare_digest(cookie, _session_value())
-
+# Sign-in is handled in front of the app (Cloudflare Access), so there's no login here.
+# What remains is refusing changes triggered from other websites, which would ride
+# along on the browser's Cloudflare session.
 
 @app.middleware("http")
-async def require_login(request: Request, call_next):
-    path = request.url.path
-    if path.startswith(PUBLIC_PATHS) or _is_authed(request):
-        return await call_next(request)
-    if path.startswith("/api/"):
-        return JSONResponse({"detail": "Not authenticated"}, status_code=401)
-    next_url = path + (f"?{request.url.query}" if request.url.query else "")
-    return RedirectResponse(f"/login?next={quote(next_url)}", status_code=303)
-
-
-@app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, next: str = "/"):
-    return templates.TemplateResponse(request, "login.html", {"next": next, "error": None})
-
-
-@app.post("/login")
-def login(request: Request, password: str = Form(...), next: str = Form("/")):
-    if not hmac.compare_digest(password, APP_PASSWORD):
-        return templates.TemplateResponse(
-            request, "login.html", {"next": next, "error": "Wrong password"}, status_code=401
-        )
-    resp = RedirectResponse(next if next.startswith("/") and not next.startswith("//") else "/", status_code=303)
-    resp.set_cookie(
-        SESSION_COOKIE, _session_value(), max_age=60 * 60 * 24 * 365, httponly=True,
-        samesite="lax", secure=request.url.scheme == "https",
-    )
-    return resp
-
-
-@app.post("/logout")
-def logout():
-    resp = RedirectResponse("/login", status_code=303)
-    resp.delete_cookie(SESSION_COOKIE)
-    return resp
+async def block_cross_site_writes(request: Request, call_next):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("sec-fetch-site") == "cross-site":
+        return JSONResponse({"detail": "Cross-site request refused"}, status_code=403)
+    return await call_next(request)
 
 
 # --- shared -----------------------------------------------------------------
@@ -170,7 +106,6 @@ templates.env.filters["step"] = render_step
 templates.env.filters["note_paragraphs"] = note_paragraphs
 templates.env.filters["link_notes"] = link_notes
 templates.env.filters["minutes"] = fmt_minutes
-templates.env.globals["auth_enabled"] = bool(APP_PASSWORD)
 
 
 # --- pages ------------------------------------------------------------------

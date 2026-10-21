@@ -12,8 +12,6 @@ HTML = """<html><head><script type="application/ld+json">{"@context":"https://sc
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("APP_PASSWORD", "pw")
-    monkeypatch.setenv("API_TOKEN", "tok")
     import app.main
     main = importlib.reload(app.main)
 
@@ -24,46 +22,41 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
-def test_pages_require_login(client):
-    r = client.get("/", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"].startswith("/login")
-    assert client.get("/api/recipes").status_code == 401
-
-
-def test_login_then_browse(client):
-    assert client.post("/login", data={"password": "nope"}).status_code == 401
-    client.post("/login", data={"password": "pw", "next": "/"})
+def test_pages_open_without_login(client):
     assert client.get("/").status_code == 200
+    assert client.get("/api/recipes").json() == []
+
+
+def test_cross_site_writes_refused(client):
+    r = client.post("/add", data={"url": "https://example.com/chili"}, headers={"Sec-Fetch-Site": "cross-site"})
+    assert r.status_code == 403
+    assert client.get("/", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 200
 
 
 def test_import_annotates_steps_and_dedupes(client):
-    auth = {"Authorization": "Bearer tok"}
-    r = client.post("/api/import", json={"url": "https://example.com/chili"}, headers=auth)
+    r = client.post("/api/import", json={"url": "https://example.com/chili"})
     assert r.status_code == 201
     recipe = r.json()
     assert recipe["status"] == "needs_review"
     assert recipe["step_groups"][0]["steps"][1] == "Add the cumin (2 tsp)."
-    again = client.post("/api/import", json={"url": "https://example.com/chili"}, headers=auth)
+    again = client.post("/api/import", json={"url": "https://example.com/chili"})
     assert again.status_code == 200 and again.json()["id"] == recipe["id"]
-
-    client.post("/login", data={"password": "pw"})
     page = client.get(f"/r/{recipe['id']}")
     assert '<span class="amt">2 tsp</span>' in page.text
 
 
 def test_api_crud(client):
-    auth = {"Authorization": "Bearer tok"}
     body = {
         "title": "Toast",
         "ingredient_groups": [{"name": "", "items": [{"amount": "2 slices", "item": "bread"}]}],
         "step_groups": [{"name": "", "steps": ["Toast the bread."]}],
     }
-    created = client.post("/api/recipes", json=body, headers=auth).json()
+    created = client.post("/api/recipes", json=body).json()
     assert created["step_groups"][0]["steps"] == ["Toast the bread (2 slices)."]
     body["status"] = "needs_review"
-    client.put(f"/api/recipes/{created['id']}", json=body, headers=auth)
-    assert [r["id"] for r in client.get("/api/recipes?status=needs_review", headers=auth).json()] == [created["id"]]
-    assert client.delete(f"/api/recipes/{created['id']}", headers=auth).status_code == 204
+    client.put(f"/api/recipes/{created['id']}", json=body)
+    assert [r["id"] for r in client.get("/api/recipes?status=needs_review").json()] == [created["id"]]
+    assert client.delete(f"/api/recipes/{created['id']}").status_code == 204
 
 
 def test_step_sections_are_kept():

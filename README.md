@@ -22,19 +22,19 @@ GHCR registry credential in TrueNAS with a `read:packages` token.)
 ## 2. Install on TrueNAS SCALE
 
 1. Create a dataset, e.g. `tank/apps/recipebook`, and give the `apps` user (568) ownership of it.
-2. **Apps → Discover Apps → ⋮ → Install via YAML** and paste `docker-compose.yml`, filling in:
-   - `OWNER` → your GitHub username
-   - the dataset path
-   - `APP_PASSWORD` → your sign-in password
-   - `API_TOKEN` → a long random string (`openssl rand -hex 32`)
+2. **Apps → Discover Apps → ⋮ → Install via YAML** and paste `docker-compose.yml`, filling in
+   `OWNER` (your GitHub username) and the dataset path.
 3. Browse to `http://<nas-ip>:8420`.
+
+The app has no login of its own: anyone who can reach port 8420 can edit recipes. That's fine on
+your LAN; from outside, Cloudflare Access is the gate (next section).
 
 **Updates:** the app tracks `:latest`. When a new image is published, TrueNAS should flag the
 app as having an update; click **Update** (it re-pulls the image). If your TrueNAS version
 doesn't show the badge, **Edit → Save** with "pull image" redeploys with the newest image.
-Recipes and sessions are on the dataset, so updates never touch them.
+Recipes are on the dataset, so updates never touch them.
 
-## 3. Expose it through Cloudflare
+## 3. Expose it through Cloudflare (with Access in front)
 
 Use a **Cloudflare Tunnel** (no open ports on your router):
 
@@ -42,8 +42,17 @@ Use a **Cloudflare Tunnel** (no open ports on your router):
 2. Install the **cloudflared** app from the TrueNAS catalog using that token.
 3. In the tunnel, add a public hostname, e.g. `recipes.yourdomain.com` → `http://<nas-ip>:8420`.
 
-The app has its own password, so this is enough. If Cloudflare's **Bot Fight Mode** is on, it may
-block the iOS Shortcut's API call; if so, add a WAF skip rule for the path `/api/`.
+Then put **Cloudflare Access** in front, since the app itself has no password:
+
+4. **Zero Trust → Access → Applications → Add → Self-hosted** for `recipes.yourdomain.com`,
+   with a policy **Allow → Emails → your address** (add a second login method/2FA under
+   **Settings → Authentication** if you like). Set the session duration long, e.g. 1 month,
+   so the Home Screen app doesn't make you sign in constantly.
+5. For Claude Code and the background Shortcut: **Access → Service Auth → Service Tokens →
+   Create**, copy the Client ID and Secret, then add a second policy to the application:
+   **Action: Service Auth → Include: Service Token → that token**.
+
+If Cloudflare's **Bot Fight Mode** is on, it can block the API calls; if so, add a WAF skip rule for `/api/`.
 
 ## 4. Add recipes from iPhone
 
@@ -56,12 +65,13 @@ Open the site in Safari, sign in, then **Share → Add to Home Screen**.
 3. Add **Open URLs** with that Text.
 
 Name it "Add to Recipe Book". From any recipe page, choose **Share → Add to Recipe Book**. It
-opens the app, imports the recipe and shows it. (It uses your Safari sign-in, so sign in once in
-Safari itself, not only in the Home Screen app.)
+opens the recipe book in Safari, imports the recipe and shows it. (It uses your Cloudflare Access
+sign-in in Safari, so sign in once in Safari itself, not only in the Home Screen app.)
 
 *Background variant (no app switch):* use **Get Contents of URL** instead: method **POST**,
-URL `https://recipes.yourdomain.com/api/import`, header `Authorization: Bearer <API_TOKEN>`,
-JSON body `url` = Shortcut Input, then **Show Notification**.
+URL `https://recipes.yourdomain.com/api/import`, headers `CF-Access-Client-Id` and
+`CF-Access-Client-Secret` set to the service token, JSON body `url` = Shortcut Input, then
+**Show Notification**.
 
 ## 5. Use Claude Code to manage recipes
 
@@ -69,7 +79,8 @@ Create `.env` in this repo (it's gitignored):
 
 ```sh
 RECIPEBOOK_URL=https://recipes.yourdomain.com
-RECIPEBOOK_TOKEN=<API_TOKEN>
+CF_ACCESS_CLIENT_ID=<service token Client ID>
+CF_ACCESS_CLIENT_SECRET=<service token Client Secret>
 ```
 
 Then ask Claude things like "clean up the pending recipes", "add my grandma's lasagna:

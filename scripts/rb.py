@@ -3,7 +3,9 @@
 
 Config via env or a .env file in the repo root:
     RECIPEBOOK_URL=https://recipes.example.com
-    RECIPEBOOK_TOKEN=<API_TOKEN from the server>
+    CF_ACCESS_CLIENT_ID=<Cloudflare Access service token id>
+    CF_ACCESS_CLIENT_SECRET=<service token secret>
+(The Cloudflare values aren't needed when RECIPEBOOK_URL is the NAS's LAN address.)
 
     rb.py list [--pending] [query]
     rb.py get ID                 # JSON to stdout
@@ -22,21 +24,22 @@ import urllib.request
 from pathlib import Path
 
 
-def _config() -> tuple[str, str]:
+def _config() -> str:
     env_file = Path(__file__).resolve().parent.parent / ".env"
     if env_file.exists():
         for line in env_file.read_text().splitlines():
             if "=" in line and not line.lstrip().startswith("#"):
                 key, value = line.split("=", 1)
                 os.environ.setdefault(key.strip(), value.strip().strip('"'))
-    url = os.environ.get("RECIPEBOOK_URL", "http://localhost:8420").rstrip("/")
-    return url, os.environ.get("RECIPEBOOK_TOKEN", "")
+    return os.environ.get("RECIPEBOOK_URL", "http://localhost:8420").rstrip("/")
 
 
 def call(method: str, path: str, body=None):
-    base, token = _config()
+    base = _config()
     req = urllib.request.Request(base + path, method=method)
-    req.add_header("Authorization", f"Bearer {token}")
+    if os.environ.get("CF_ACCESS_CLIENT_ID"):
+        req.add_header("CF-Access-Client-Id", os.environ["CF_ACCESS_CLIENT_ID"])
+        req.add_header("CF-Access-Client-Secret", os.environ.get("CF_ACCESS_CLIENT_SECRET", ""))
     # Cloudflare's bot protection tends to reject Python's default user agent.
     req.add_header("User-Agent", "recipebook-cli/1.0")
     data = None

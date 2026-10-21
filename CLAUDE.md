@@ -25,7 +25,7 @@ Every recipe must follow these, whether scraped, typed, or written by Claude:
 
 ## Working with the live recipe list
 
-Use `scripts/rb.py` (reads `RECIPEBOOK_URL` / `RECIPEBOOK_TOKEN` from `.env`):
+Use `scripts/rb.py` (reads `RECIPEBOOK_URL` and the Cloudflare Access service token from `.env`):
 
 ```sh
 python3 scripts/rb.py list --pending       # imported recipes awaiting cleanup
