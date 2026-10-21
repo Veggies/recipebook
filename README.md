@@ -7,6 +7,7 @@ states the amount of each ingredient it uses.
 - Mobile-first, iOS-styled, works as a Home Screen app; two-column layout on desktop
 - Tap ingredients to check them off, tap a step to track your place; the screen stays awake
 - Plain-text editor that's comfortable on a phone
+- Shopping list: pick recipes, amounts are combined, tick off what you have, share the rest to Notes
 - JSON API + `scripts/rb.py` so Claude Code can add and clean up recipes
 
 ## 1. Publish the image (once)

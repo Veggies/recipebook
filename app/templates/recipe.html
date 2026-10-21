@@ -32,10 +32,27 @@
 </div>
 
 <div class="recipe-layout">
-  <div class="side" id="tab-ingredients" role="tabpanel">
+  <section class="side ingredients" id="tab-ingredients" role="tabpanel" aria-labelledby="ing-h">
+    <h2 id="ing-h" class="section-h">Ingredients</h2>
+    {% for g in r.ingredient_groups %}
+    {% if g.name %}<h3 class="group-h">{{ g.name }}</h3>{% endif %}
+    <ul class="list checklist">
+      {% for ing in g["items"] %}
+      <li>
+        <label>
+          <input type="checkbox">
+          <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item }}</span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endfor %}
+  </section>
+
+  <section class="steps" id="tab-steps" role="tabpanel" aria-labelledby="steps-h">
     {% if before.ahead or before.prep %}
-    <section class="before" aria-labelledby="before-h">
-      <h2 id="before-h" class="section-h">Before You Start</h2>
+    <div class="before">
+      <h2 class="section-h">Before You Start</h2>
       {% for a in before.ahead %}
       <h3 class="group-h">{{ a.tip }}</h3>
       <ul class="list checklist ahead">
@@ -62,28 +79,9 @@
         {% endfor %}
       </ul>
       {% endif %}
-    </section>
+    </div>
     {% endif %}
 
-    <section class="ingredients" aria-labelledby="ing-h">
-      <h2 id="ing-h" class="section-h">Ingredients</h2>
-      {% for g in r.ingredient_groups %}
-      {% if g.name %}<h3 class="group-h">{{ g.name }}</h3>{% endif %}
-      <ul class="list checklist">
-        {% for ing in g["items"] %}
-        <li>
-          <label>
-            <input type="checkbox">
-            <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item }}</span>
-          </label>
-        </li>
-        {% endfor %}
-      </ul>
-      {% endfor %}
-    </section>
-  </div>
-
-  <section class="steps" id="tab-steps" role="tabpanel" aria-labelledby="steps-h">
     <h2 id="steps-h" class="section-h">Steps</h2>
     {% set n = namespace(i=0) %}
     {% for g in r.step_groups %}
@@ -95,7 +93,6 @@
       {% endfor %}
     </ol>
     {% endfor %}
-
   </section>
 
   <!-- One Notes section shared by both tabs: it sits outside them, so it shows under whichever is open. -->

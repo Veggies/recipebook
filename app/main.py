@@ -3,7 +3,7 @@ import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -15,6 +15,7 @@ from .ingredients import short_amount
 from .prep import before_you_start
 from .tidy import tidy_recipe
 from .scrape import ScrapeError, scrape
+from .shopping import build_shopping_list
 
 APP_DIR = Path(__file__).parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
@@ -193,6 +194,24 @@ async def add(request: Request, url: str = Form(...)):
     return RedirectResponse(f"/r/{recipe['id']}", status_code=303)
 
 
+@app.get("/shop", response_class=HTMLResponse)
+def shop_pick(request: Request, r: list[int] = Query(default=[])):
+    """Step 1 of the shopping list: choose what you're cooking."""
+    return templates.TemplateResponse(request, "shop_pick.html", {"recipes": db.list_recipes(), "chosen": set(r)})
+
+
+@app.get("/shop/list", response_class=HTMLResponse)
+def shop_list(request: Request, r: list[int] = Query(default=[])):
+    """Steps 2 and 3: tick off what you already have, then the final list to share."""
+    recipes = [recipe for recipe in (db.get(i) for i in r) if recipe]
+    if not recipes:
+        return RedirectResponse("/shop", status_code=303)
+    return templates.TemplateResponse(request, "shop_list.html", {
+        "recipes": recipes, "groups": build_shopping_list(recipes),
+        "list_id": ",".join(str(x["id"]) for x in sorted(recipes, key=lambda x: x["id"])),
+    })
+
+
 def _extract_url(text: str) -> str:
     # Share sheets sometimes send "Recipe title https://..." rather than a bare URL.
     m = re.search(r"https?://\S+", text)
@@ -267,6 +286,11 @@ def api_update(recipe_id: int, recipe: RecipeIn):
 @app.delete("/api/recipes/{recipe_id}", status_code=204)
 def api_delete(recipe_id: int):
     db.delete(recipe_id) or _not_found()
+
+
+@app.get("/api/shopping-list")
+def api_shopping_list(r: list[int] = Query(default=[])):
+    return build_shopping_list([recipe for recipe in (db.get(i) for i in r) if recipe])
 
 
 @app.post("/api/import")

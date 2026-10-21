@@ -11,6 +11,8 @@
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
 </form>
 
+<a class="button secondary shop-btn" href="/shop">Build Shopping List</a>
+
 {% if tags %}
 <nav class="chips">
   <a class="chip {% if not tag %}on{% endif %}" href="/?q={{ q|urlencode }}">All</a>

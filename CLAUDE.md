@@ -23,6 +23,13 @@ Every recipe must follow these, whether scraped, typed, or written by Claude:
   "see Notes"). `notes` is only for notes the user asks to add.
 - Times are integer minutes. Tags are lowercase.
 
+## Shopping list
+
+`/shop` → pick recipes → `/shop/list` (tick what's at home) → final list, shared to Apple Notes
+via the iOS share sheet. Combining lives in `app/shopping.py`: same ingredient across recipes is
+added up (volumes in tsp, weights in oz, then shown in a natural unit); unconvertible amounts sit
+side by side. `GET /api/shopping-list?r=1&r=2` returns the same data as JSON.
+
 ## Working with the live recipe list
 
 Use `scripts/rb.py` (reads `RECIPEBOOK_URL` and the Cloudflare Access service token from `.env`):

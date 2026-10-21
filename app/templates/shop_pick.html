@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Shopping List{% endblock %}
+{% block bar_left %}<a class="bar-btn back" href="/">Recipes</a>{% endblock %}
+{% block content %}
+<h1 class="large-title">What are you making?</h1>
+<p class="lead">Pick the recipes you're shopping for.</p>
+
+<form action="/shop/list" method="get" class="pick-form">
+  <ul class="cards pick-list">
+    {% for r in recipes %}
+    <li>
+      <input type="checkbox" name="r" value="{{ r.id }}" id="pick-{{ r.id }}" {% if r.id in chosen %}checked{% endif %}>
+      <label class="card" for="pick-{{ r.id }}">
+        {% if r.image_url %}
+        <img class="card-img" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        {% else %}
+        <div class="card-img card-img-empty" aria-hidden="true">{{ r.title[:1] }}</div>
+        {% endif %}
+        <div class="card-body"><div class="card-title">{{ r.title }}</div></div>
+        <span class="pick-mark" aria-hidden="true"></span>
+      </label>
+    </li>
+    {% else %}
+    <li class="empty">No recipes yet.</li>
+    {% endfor %}
+  </ul>
+  <div class="action-bar">
+    <button class="button" type="submit" data-pick-submit>Build List</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Shopping List{% endblock %}
+{% block bar_left %}<a class="bar-btn back" href="/shop?{% for r in recipes %}r={{ r.id }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">Recipes</a>{% endblock %}
+{% block content %}
+<div class="shop" data-list-id="{{ list_id }}">
+  <section data-phase="review">
+    <h1 class="large-title">Check Your Kitchen</h1>
+    <p class="lead">Tick everything you already have. Making: {{ recipes|map(attribute="title")|join(", ") }}.</p>
+    {% for g in groups %}
+    <h3 class="group-h" data-aisle>{{ g.aisle }}</h3>
+    <ul class="list checklist" data-aisle-items="{{ g.aisle }}">
+      {% for it in g["items"] %}
+      <li>
+        <label>
+          <input type="checkbox" data-have="{{ it.key }}">
+          <span class="ing" data-line="{{ (it.amount ~ ' ' ~ it.name)|trim }}{% if it.optional %} (optional){% endif %}">
+            {% if it.amount %}<b>{{ it.amount }}</b> {% endif %}{{ it.name }}{% if it.optional %} <em>optional</em>{% endif %}
+            {% if recipes|length > 1 %}<small class="src">{{ it.sources|join(" · ") }}</small>{% endif %}
+          </span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endfor %}
+    <div class="action-bar">
+      <button class="button" type="button" data-finalize>Make Shopping List</button>
+    </div>
+  </section>
+
+  <section data-phase="final" hidden>
+    <h1 class="large-title">Shopping List</h1>
+    <p class="shop-summary" data-summary></p>
+    <div data-final></div>
+    <div class="action-bar two">
+      <button class="button secondary" type="button" data-copy>Copy</button>
+      <button class="button" type="button" data-share>Share to Notes</button>
+    </div>
+    <p class="hint"><button class="link-btn" type="button" data-back>Back to kitchen check</button></p>
+  </section>
+</div>
+{% endblock %}

@@ -101,3 +101,19 @@ def test_add_note_from_recipe_page(client):
     assert saved["notes"] == "Use sourdough.\n\nButter while hot."
     assert saved["status"] == "needs_review"
     assert "Edit Notes" in client.get(f"/r/{created['id']}").text
+
+
+def test_shopping_list_pages(client):
+    def make(title, *lines):
+        return client.post("/api/recipes", json={
+            "title": title,
+            "ingredient_groups": [{"name": "", "items": [{"amount": a, "item": i} for a, i in lines]}],
+            "step_groups": [{"name": "", "steps": ["Cook."]}],
+        }).json()["id"]
+    a = make("Lemon Bars", ("1", "lemon"), ("1 cup", "flour"))
+    b = make("Lemonade", ("1", "lemon, juiced"), ("2 cups", "water"))
+    assert client.get("/shop/list", follow_redirects=False).status_code == 303
+    assert "Lemon Bars" in client.get("/shop").text
+    page = client.get(f"/shop/list?r={a}&r={b}").text
+    assert "<b>2</b> lemons" in page and "water" not in page
+    assert client.get(f"/api/shopping-list?r={a}&r={b}").json()[0]["items"][0]["amount"] == "2"
