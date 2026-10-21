@@ -5,7 +5,6 @@ services:
     image: ghcr.io/veggies/recipebook:latest
     pull_policy: always
     restart: unless-stopped
-    user: "568:568" # TrueNAS "apps" user - give it ownership of the dataset below
     ports:
       - "8420:8000"
     volumes:

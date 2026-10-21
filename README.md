@@ -21,7 +21,8 @@ GitHub → your profile → **Packages** → `recipebook` → **Package settings
 
 ## 2. Install on TrueNAS SCALE
 
-1. Create a dataset, e.g. `tank/apps/recipebook`, and give the `apps` user (568) ownership of it.
+1. Create a dataset, e.g. `tank/apps/recipebook`. No permission changes needed: the container
+   takes ownership of it on start and then runs as the `apps` user (568).
 2. **Apps → Discover Apps → ⋮ → Install via YAML** and paste `docker-compose.yml`, filling in
    `OWNER` (your GitHub username) and the dataset path.
 3. Browse to `http://<nas-ip>:8420`.

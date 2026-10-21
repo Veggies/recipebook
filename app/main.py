@@ -22,7 +22,14 @@ from .shopping import build_shopping_list
 APP_DIR = Path(__file__).parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 IMAGES_DIR = DATA_DIR / "images"
-IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+except PermissionError:
+    raise SystemExit(
+        f"Recipe Book can't write to its data folder ({DATA_DIR.resolve()}) as uid {os.getuid()}. "
+        "Give that user ownership of the dataset, or remove any 'user:' line from the app's YAML "
+        "so the container can fix the permissions itself."
+    ) from None
 
 
 @asynccontextmanager
