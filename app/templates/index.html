@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block bar_right %}
+  <a class="bar-btn" href="/new" aria-label="Write a recipe">Write</a>
+  <a class="bar-btn bar-btn-icon" href="/add" aria-label="Add from link">+</a>
+{% endblock %}
+{% block content %}
+<h1 class="large-title">Recipes</h1>
+
+<form class="search" action="/" method="get" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search" autocomplete="off" enterkeyhint="search">
+  {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+</form>
+
+{% if tags %}
+<nav class="chips">
+  <a class="chip {% if not tag %}on{% endif %}" href="/?q={{ q|urlencode }}">All</a>
+  {% for t in tags %}
+  <a class="chip {% if t == tag %}on{% endif %}" href="/?q={{ q|urlencode }}&tag={{ t|urlencode }}">{{ t }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if recipes %}
+<ul class="cards">
+  {% for r in recipes %}
+  <li>
+    <a class="card" href="/r/{{ r.id }}">
+      {% if r.image_url %}
+      <img class="card-img" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+      {% else %}
+      <div class="card-img card-img-empty" aria-hidden="true">{{ r.title[:1] }}</div>
+      {% endif %}
+      <div class="card-body">
+        <div class="card-title">{{ r.title }}</div>
+        <div class="card-meta">
+          {% if r.status == "needs_review" %}<span class="badge">Needs review</span>{% endif %}
+          {% if r.total_time %}<span>{{ r.total_time|minutes }}</span>{% endif %}
+          {% if r.servings %}<span>{{ r.servings }}</span>{% endif %}
+        </div>
+      </div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  {% if q or tag %}
+  <p>No recipes match.</p>
+  {% else %}
+  <p>No recipes yet.</p>
+  <a class="button" href="/add">Add one from a link</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if auth_enabled %}
+<form class="signout" action="/logout" method="post"><button class="link-btn">Sign out</button></form>
+{% endif %}
+{% endblock %}

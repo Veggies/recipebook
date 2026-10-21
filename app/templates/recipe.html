@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ r.title }}{% endblock %}
+{% block body_class %}recipe-page{% endblock %}
+{% block bar_left %}<a class="bar-btn back" href="/">Recipes</a>{% endblock %}
+{% block bar_title %}<span class="bar-title-text">{{ r.title }}</span>{% endblock %}
+{% block bar_right %}<a class="bar-btn" href="/r/{{ r.id }}/edit">Edit</a>{% endblock %}
+{% block content %}
+{% if r.image_url %}
+<img class="hero" src="{{ r.image_url }}" alt="" referrerpolicy="no-referrer">
+{% endif %}
+
+<h1 class="large-title recipe-title" data-observe-title>{{ r.title }}</h1>
+
+{% if r.status == "needs_review" %}
+<p class="notice">Imported automatically. Check the ingredient groups and step amounts, then untick “Needs review” in Edit.</p>
+{% endif %}
+
+<div class="meta">
+  {% if r.servings %}<div><span>Serves</span>{{ r.servings }}</div>{% endif %}
+  {% if r.prep_time %}<div><span>Prep</span>{{ r.prep_time|minutes }}</div>{% endif %}
+  {% if r.cook_time %}<div><span>Cook</span>{{ r.cook_time|minutes }}</div>{% endif %}
+  {% if r.total_time %}<div><span>Total</span>{{ r.total_time|minutes }}</div>{% endif %}
+</div>
+
+{% if r.description %}<p class="description">{{ r.description }}</p>{% endif %}
+
+<div class="recipe-layout">
+  <section class="ingredients" aria-labelledby="ing-h">
+    <h2 id="ing-h" class="section-h">Ingredients</h2>
+    {% for g in r.ingredient_groups %}
+    {% if g.name %}<h3 class="group-h">{{ g.name }}</h3>{% endif %}
+    <ul class="list checklist">
+      {% for ing in g["items"] %}
+      <li>
+        <label>
+          <input type="checkbox">
+          <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item }}</span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endfor %}
+  </section>
+
+  <section class="steps" aria-labelledby="steps-h">
+    <h2 id="steps-h" class="section-h">Steps</h2>
+    {% set n = namespace(i=0) %}
+    {% for g in r.step_groups %}
+    {% if g.name %}<h3 class="group-h">{{ g.name }}</h3>{% endif %}
+    <ol class="list step-list">
+      {% for step in g.steps %}
+      {% set n.i = n.i + 1 %}
+      <li class="step" tabindex="0"><span class="step-n">{{ n.i }}</span><p>{{ step|amounts(r) }}</p></li>
+      {% endfor %}
+    </ol>
+    {% endfor %}
+
+    {% if r.notes %}
+    <h2 class="section-h">Notes</h2>
+    <div class="list notes">{{ r.notes }}</div>
+    {% endif %}
+  </section>
+</div>
+
+<footer class="recipe-foot">
+  {% if r.source_url %}<a href="{{ r.source_url }}" target="_blank" rel="noopener noreferrer">View original</a>{% endif %}
+  {% if r.tags %}<div class="foot-tags">{% for t in r.tags %}<a class="chip" href="/?tag={{ t|urlencode }}">{{ t }}</a>{% endfor %}</div>{% endif %}
+</footer>
+{% endblock %}

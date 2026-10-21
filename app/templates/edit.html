@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit " ~ r.title if r else "New recipe" }}{% endblock %}
+{% block body_class %}edit-page{% endblock %}
+{% block bar_left %}<a class="bar-btn" href="{{ '/r/%d' % r.id if r else '/' }}">Cancel</a>{% endblock %}
+{% block bar_title %}<span class="bar-title-text">{{ "Edit" if r else "New Recipe" }}</span>{% endblock %}
+{% block bar_right %}<button class="bar-btn bold" form="edit-form">Save</button>{% endblock %}
+{% block content %}
+<form id="edit-form" method="post" class="edit-form">
+  <textarea name="text" class="editor" spellcheck="true" autocapitalize="sentences">{{ text }}</textarea>
+
+  {% if r %}
+  <label class="toggle-row">
+    <span>Needs review</span>
+    <input type="checkbox" name="needs_review" class="switch" {% if r.status == "needs_review" %}checked{% endif %}>
+  </label>
+  {% endif %}
+</form>
+
+<details class="help">
+  <summary>Format help</summary>
+  <ul>
+    <li><code>== Ingredients: Frosting ==</code> starts an ingredient group (name optional).</li>
+    <li>Ingredient lines: <code>1 cup | powdered sugar</code>. Without <code>|</code> the amount is detected.</li>
+    <li><code>== Steps: Cake ==</code> starts a step group; one step per line.</li>
+    <li>Amounts are added to steps automatically on save, e.g. “add the cumin (1 tsp)”.</li>
+    <li>Fields: Title, Servings, Prep/Cook/Total minutes, Source, Image, Tags, Description.</li>
+  </ul>
+</details>
+
+{% if r %}
+<form method="post" action="/r/{{ r.id }}/delete" class="danger-zone" data-confirm="Delete this recipe?">
+  <button class="button danger">Delete Recipe</button>
+</form>
+{% endif %}
+{% endblock %}

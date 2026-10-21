@@ -1,0 +1,15 @@
+# Paste into TrueNAS: Apps > Discover Apps > ⋮ > Install via YAML.
+# Replace OWNER, the dataset path and the two secrets.
+services:
+  recipebook:
+    image: ghcr.io/OWNER/recipebook:latest
+    pull_policy: always
+    restart: unless-stopped
+    user: "568:568" # TrueNAS "apps" user - give it ownership of the dataset below
+    ports:
+      - "8420:8000"
+    environment:
+      APP_PASSWORD: "change-me"
+      API_TOKEN: "long-random-string" # for the iOS Shortcut and Claude Code
+    volumes:
+      - /mnt/tank/apps/recipebook:/data
