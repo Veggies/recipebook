@@ -13,9 +13,18 @@ Config via env or a .env file in the repo root:
     rb.py add FILE.json          # create a recipe
     rb.py import URL             # scrape a link on the server
     rb.py delete ID
+    rb.py export FILE.json       # every recipe, with uploaded photos embedded
+    rb.py restore FILE.json      # add them to RECIPEBOOK_URL (skips titles already there)
+
+Moving to a new server:  rb.py export backup.json, then point RECIPEBOOK_URL at the new
+server and rb.py restore backup.json.
 """
 
+from __future__ import annotations
+
+import base64
 import json
+import uuid
 import os
 import sys
 import urllib.error
@@ -34,7 +43,7 @@ def _config() -> str:
     return os.environ.get("RECIPEBOOK_URL", "http://localhost:8420").rstrip("/")
 
 
-def call(method: str, path: str, body=None):
+def _request(method: str, path: str, data: bytes | None = None, content_type: str | None = None) -> bytes:
     base = _config()
     req = urllib.request.Request(base + path, method=method)
     if os.environ.get("CF_ACCESS_CLIENT_ID"):
@@ -42,16 +51,57 @@ def call(method: str, path: str, body=None):
         req.add_header("CF-Access-Client-Secret", os.environ.get("CF_ACCESS_CLIENT_SECRET", ""))
     # Cloudflare's bot protection tends to reject Python's default user agent.
     req.add_header("User-Agent", "recipebook-cli/1.0")
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode()
-        req.add_header("Content-Type", "application/json")
+    if content_type:
+        req.add_header("Content-Type", content_type)
     try:
         with urllib.request.urlopen(req, data, timeout=60) as resp:
-            raw = resp.read()
+            return resp.read()
     except urllib.error.HTTPError as e:
         sys.exit(f"{e.code} {e.reason}: {e.read().decode(errors='replace')}")
+
+
+def call(method: str, path: str, body=None):
+    data = json.dumps(body).encode() if body is not None else None
+    raw = _request(method, path, data, "application/json" if data else None)
     return json.loads(raw) if raw else None
+
+
+def upload_image(data: bytes) -> str:
+    boundary = uuid.uuid4().hex
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"photo.jpg\"\r\n"
+        f"Content-Type: image/jpeg\r\n\r\n"
+    ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+    raw = _request("POST", "/api/images", body, f"multipart/form-data; boundary={boundary}")
+    return json.loads(raw)["url"]
+
+
+def export(path: str) -> None:
+    recipes = []
+    for summary in call("GET", "/api/recipes"):
+        recipe = call("GET", f"/api/recipes/{summary['id']}")
+        if recipe.get("image_url", "").startswith("/images/"):
+            # Uploaded photos live on this server, so carry the bytes along.
+            recipe["image_data"] = base64.b64encode(_request("GET", recipe["image_url"])).decode()
+        recipes.append(recipe)
+    Path(path).write_text(json.dumps(recipes, indent=2, ensure_ascii=False))
+    print(f"Exported {len(recipes)} recipes to {path}")
+
+
+def restore(path: str) -> None:
+    existing = {r["title"] for r in call("GET", "/api/recipes")}
+    added = 0
+    for recipe in json.loads(Path(path).read_text()):
+        if recipe["title"] in existing:
+            print(f"skip (already there): {recipe['title']}")
+            continue
+        if recipe.get("image_data"):
+            recipe["image_url"] = upload_image(base64.b64decode(recipe.pop("image_data")))
+        for key in ("id", "created_at", "updated_at", "image_data"):
+            recipe.pop(key, None)
+        call("POST", "/api/recipes", recipe)
+        added += 1
+    print(f"Restored {added} recipes")
 
 
 def main(argv: list[str]) -> None:
@@ -77,6 +127,10 @@ def main(argv: list[str]) -> None:
     elif cmd == "import":
         result = call("POST", "/api/import", {"url": args[0]})
         print(f"#{result['id']}: {result['title']} ({result['status']})")
+    elif cmd == "export":
+        export(args[0])
+    elif cmd == "restore":
+        restore(args[0])
     elif cmd == "delete":
         call("DELETE", f"/api/recipes/{args[0]}")
         print(f"Deleted #{args[0]}")

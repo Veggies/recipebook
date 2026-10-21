@@ -6,7 +6,7 @@ states the amount of each ingredient it uses.
 
 - Mobile-first, iOS-styled, works as a Home Screen app; two-column layout on desktop
 - Tap ingredients to check them off, tap a step to track your place; the screen stays awake
-- Plain-text editor that's comfortable on a phone
+- Simple form editor: add a photo from the camera roll, type ingredients naturally, sections for components
 - Shopping list: pick recipes, amounts are combined, tick off what you have, share the rest to Notes
 - JSON API + `scripts/rb.py` so Claude Code can add and clean up recipes
 
@@ -86,6 +86,19 @@ CF_ACCESS_CLIENT_SECRET=<service token Client Secret>
 
 Then ask Claude things like "clean up the pending recipes", "add my grandma's lasagna:
 …", or "tag everything vegetarian". The house rules Claude follows are in `CLAUDE.md`.
+
+**Code updates never touch your recipes.** They live on the NAS dataset; a new image only replaces
+the app. Claude edits recipes on the NAS directly through the API, so there's nothing to copy.
+
+**Moving recipes to a new server (one time):**
+
+```sh
+python3 scripts/rb.py export backup.json      # from wherever they are now (RECIPEBOOK_URL)
+RECIPEBOOK_URL=http://<nas-ip>:8420 python3 scripts/rb.py restore backup.json
+```
+
+The export doubles as a backup. For automatic backups, add a periodic snapshot task for the
+`recipebook` dataset in TrueNAS (Data Protection → Periodic Snapshot Tasks).
 
 Imported recipes are marked **Needs review**. The automatic import keeps whatever ingredient
 groups the site provides and writes amounts into the steps, but it can't split a flat ingredient

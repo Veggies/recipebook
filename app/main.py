@@ -1,9 +1,10 @@
+import json
 import os
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,7 +12,8 @@ from markupsafe import Markup, escape
 from pydantic import BaseModel, Field, HttpUrl
 
 from . import db, textformat
-from .ingredients import short_amount
+from .images import ImageError, save_upload
+from .ingredients import parse_ingredient, short_amount
 from .prep import before_you_start
 from .tidy import tidy_recipe
 from .scrape import ScrapeError, scrape
@@ -19,6 +21,8 @@ from .shopping import build_shopping_list
 
 APP_DIR = Path(__file__).parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+IMAGES_DIR = DATA_DIR / "images"
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
@@ -29,6 +33,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Recipe Book", docs_url=None, redoc_url=None, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
 
 
@@ -133,17 +138,65 @@ def view(request: Request, recipe_id: int):
 @app.get("/r/{recipe_id}/edit", response_class=HTMLResponse)
 def edit_page(request: Request, recipe_id: int):
     recipe = db.get(recipe_id) or _not_found()
-    return templates.TemplateResponse(
-        request, "edit.html", {"r": recipe, "text": textformat.to_text(recipe), "error": None}
-    )
+    return templates.TemplateResponse(request, "edit.html", {"r": recipe})
 
 
 @app.post("/r/{recipe_id}/edit")
-def edit(request: Request, recipe_id: int, text: str = Form(...), needs_review: bool = Form(False)):
+def edit(recipe_id: int, recipe: str = Form(...)):
+    existing = db.get(recipe_id) or _not_found()
+    saved = db.update(recipe_id, normalize(recipe_from_form(json.loads(recipe), existing)))
+    return RedirectResponse(f"/r/{saved['id']}", status_code=303)
+
+
+@app.get("/r/{recipe_id}/edit/text", response_class=HTMLResponse)
+def edit_text_page(request: Request, recipe_id: int):
+    recipe = db.get(recipe_id) or _not_found()
+    return templates.TemplateResponse(request, "edit_text.html", {"r": recipe, "text": textformat.to_text(recipe)})
+
+
+@app.post("/r/{recipe_id}/edit/text")
+def edit_text(recipe_id: int, text: str = Form(...), needs_review: bool = Form(False)):
     recipe = textformat.from_text(text)
     recipe["status"] = "needs_review" if needs_review else "ready"
     saved = db.update(recipe_id, normalize(recipe)) or _not_found()
     return RedirectResponse(f"/r/{saved['id']}", status_code=303)
+
+
+def recipe_from_form(form: dict, existing: dict | None = None) -> dict:
+    """The editor's JSON -> a recipe. Ingredient lines are typed whole ("2 cups flour"); a line
+    still matching its stored text keeps the stored amount/item split, so untouched lines don't shift."""
+    def ingredient(row: dict) -> dict:
+        line = " ".join(row.get("line", "").split())
+        if "amount" in row and line == " ".join(f"{row['amount']} {row['item']}".split()):
+            return {"amount": row["amount"], "item": row["item"]}
+        return parse_ingredient(line)
+
+    def minutes(value):
+        return int(value) if str(value).strip().isdigit() else None
+
+    groups = [
+        {"name": g.get("name", "").strip(), "items": [ingredient(r) for r in g.get("items", []) if r.get("line", "").strip()]}
+        for g in form.get("ingredient_groups", [])
+    ]
+    steps = [
+        {"name": g.get("name", "").strip(), "steps": [" ".join(st.split()) for st in g.get("steps", []) if st.strip()]}
+        for g in form.get("step_groups", [])
+    ]
+    return {
+        "title": form.get("title", "").strip(),
+        "description": form.get("description", "").strip(),
+        "source_url": (existing or {}).get("source_url", ""),
+        "image_url": form.get("image_url", "").strip(),
+        "servings": form.get("servings", "").strip(),
+        "prep_time": minutes(form.get("prep_time")),
+        "cook_time": minutes(form.get("cook_time")),
+        "total_time": minutes(form.get("total_time")),
+        "tags": [t.strip().lower() for t in form.get("tags", "").split(",") if t.strip()],
+        "ingredient_groups": [g for g in groups if g["items"]],
+        "step_groups": [g for g in steps if g["steps"]],
+        "notes": form.get("notes", "").replace("\r\n", "\n").strip(),
+        "status": "needs_review" if form.get("needs_review") else "ready",
+    }
 
 
 @app.post("/r/{recipe_id}/notes")
@@ -163,15 +216,12 @@ def delete(recipe_id: int):
 
 @app.get("/new", response_class=HTMLResponse)
 def new_page(request: Request):
-    blank = {"title": "", "ingredient_groups": [{"name": "", "items": []}], "step_groups": [{"name": "", "steps": []}]}
-    return templates.TemplateResponse(
-        request, "edit.html", {"r": None, "text": textformat.to_text(blank), "error": None}
-    )
+    return templates.TemplateResponse(request, "edit.html", {"r": None})
 
 
 @app.post("/new")
-def new(text: str = Form(...)):
-    saved = db.create(normalize(textformat.from_text(text)))
+def new(recipe: str = Form(...)):
+    saved = db.create(normalize(recipe_from_form(json.loads(recipe))))
     return RedirectResponse(f"/r/{saved['id']}", status_code=303)
 
 
@@ -289,6 +339,15 @@ def api_delete(recipe_id: int):
 @app.get("/api/shopping-list")
 def api_shopping_list(r: list[int] = Query(default=[])):
     return build_shopping_list([recipe for recipe in (db.get(i) for i in r) if recipe])
+
+
+@app.post("/api/images", status_code=201)
+async def api_upload_image(file: UploadFile = File(...)):
+    try:
+        name = save_upload(await file.read(), IMAGES_DIR)
+    except ImageError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"url": f"/images/{name}"}
 
 
 @app.post("/api/import")

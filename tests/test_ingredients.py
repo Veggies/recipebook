@@ -147,3 +147,12 @@ def test_canned_is_not_a_can():
 def test_amount_stated_under_another_name_counts():
     out = _annotate(["2 tbsp ghee or unsalted butter"], ["Add the ghee or butter (2 tbsp)."])
     assert out == ["Add the ghee or butter (2 tbsp)."]
+
+
+def test_naming_a_section_points_at_its_ingredients():
+    groups = [
+        {"name": "", "items": [parse_ingredient("6 lemons, juiced")]},
+        {"name": "Garnish", "items": [parse_ingredient("1 lemon, sliced")]},
+    ]
+    out = annotate_steps(groups, [{"name": "", "steps": ["Squeeze the lemons, then garnish with lemon."]}])
+    assert out[0]["steps"] == ["Squeeze the lemons (6), then garnish with lemon (1)."]

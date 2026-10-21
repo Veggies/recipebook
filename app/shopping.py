@@ -39,7 +39,7 @@ _ALIASES = {
 # Counted things: "3 cloves garlic". Singular form is the key.
 COUNT_UNITS = {
     "clove", "can", "jar", "package", "pkg", "stick", "slice", "sprig", "bunch", "head", "handful",
-    "piece", "pinch", "dash", "splash", "bag", "box", "carton", "tin", "bottle", "stalk",
+    "piece", "pinch", "dash", "splash", "bag", "box", "carton", "tin", "bottle", "stalk", "packet", "envelope",
 }
 CONTAINERS = {"can", "jar", "package", "bag", "box", "carton", "tin", "bottle"}
 _UNIT_RE = re.compile(

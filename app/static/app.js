@@ -250,3 +250,174 @@ if (shop) {
     }
   });
 }
+
+// Recipe editor: a plain form instead of a text format. Lines behave like Notes - return
+// starts the next one, backspace on an empty line removes it, a pasted list becomes lines.
+const editor = document.querySelector("#editor");
+if (editor) {
+  let dirty = false;
+  let uploading = false;
+  const markDirty = () => { dirty = true; };
+  editor.addEventListener("input", markDirty);
+
+  const autosize = (ta) => { ta.style.height = "auto"; ta.style.height = `${ta.scrollHeight}px`; };
+  const fromTemplate = (id) => document.getElementById(id).content.firstElementChild.cloneNode(true);
+  const kindOf = (el) => el.closest(".ed-group").dataset.kind;
+
+  const addRow = (afterRow, kind, text = "") => {
+    const row = fromTemplate(`tpl-${kind}-row`);
+    const field = row.querySelector(".ed-line");
+    field.value = text;
+    afterRow.after(row);
+    if (field.tagName === "TEXTAREA") autosize(field);
+    return field;
+  };
+
+  const updateGroupButtons = () => {
+    document.querySelectorAll(".ed-groups").forEach((groups) => {
+      const many = groups.children.length > 1;
+      groups.querySelectorAll(".ed-del-group").forEach((b) => { b.hidden = !many; });
+    });
+  };
+
+  editor.addEventListener("keydown", (e) => {
+    const field = e.target.closest(".ed-line");
+    if (!field || e.isComposing) return;
+    const row = field.closest(".ed-row");
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      addRow(row, kindOf(row)).focus();
+      markDirty();
+    } else if (e.key === "Backspace" && field.value === "" && row.parentElement.children.length > 1) {
+      e.preventDefault();
+      const prev = row.previousElementSibling?.querySelector(".ed-line");
+      row.remove();
+      if (prev) { prev.focus(); prev.setSelectionRange(prev.value.length, prev.value.length); }
+      markDirty();
+    }
+  });
+
+  editor.addEventListener("paste", (e) => {
+    const field = e.target.closest(".ed-line");
+    const text = e.clipboardData?.getData("text") || "";
+    if (!field || !text.includes("\n")) return;
+    e.preventDefault();
+    // Pasted list: one line per row, minus bullets and step numbers.
+    const lines = text.split(/\r?\n/).map((l) => l.replace(/^\s*(?:[-*•▢☐]|\d+[.)])\s*/, "").trim()).filter(Boolean);
+    let row = field.closest(".ed-row");
+    field.value = (field.value + " " + lines.shift()).trim();
+    let last = field;
+    lines.forEach((line) => { last = addRow(row, kindOf(row), line); row = last.closest(".ed-row"); });
+    last.focus();
+    markDirty();
+  });
+
+  editor.addEventListener("input", (e) => {
+    if (e.target.matches("textarea")) autosize(e.target);
+  });
+  editor.querySelectorAll("textarea").forEach(autosize);
+
+  editor.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    if (btn.matches(".ed-del")) {
+      const row = btn.closest(".ed-row");
+      if (row.parentElement.children.length > 1) row.remove();
+      else { row.querySelector(".ed-line").value = ""; }
+      markDirty();
+    } else if (btn.matches(".ed-add")) {
+      const rows = btn.closest(".ed-group").querySelector(".ed-rows");
+      addRow(rows.lastElementChild, kindOf(btn)).focus();
+    } else if (btn.matches(".ed-add-group")) {
+      const group = fromTemplate(`tpl-${btn.dataset.kind}-group`);
+      document.querySelector(`.ed-groups[data-kind="${btn.dataset.kind}"]`).append(group);
+      updateGroupButtons();
+      group.querySelector(".ed-group-name").focus();
+      markDirty();
+    } else if (btn.matches(".ed-del-group")) {
+      const group = btn.closest(".ed-group");
+      const filled = [...group.querySelectorAll(".ed-line")].some((f) => f.value.trim());
+      if (!filled || confirm("Remove this section and everything in it?")) {
+        group.remove();
+        updateGroupButtons();
+        markDirty();
+      }
+    }
+  });
+  updateGroupButtons();
+
+  // Photo: shrink on the phone (fast uploads, and Safari turns HEIC into JPEG here), then upload.
+  const photo = editor.querySelector(".photo-pick");
+  const photoInput = editor.querySelector("#photo-file");
+  const photoLabel = editor.querySelector("[data-photo-label]");
+  const imageUrl = editor.querySelector("#image_url");
+  const setPhoto = (url) => {
+    imageUrl.value = url;
+    photo.querySelector(".photo-preview").src = url;
+    photo.classList.toggle("has-photo", !!url);
+    photoLabel.textContent = url ? "Change Photo" : "Add Photo";
+    markDirty();
+  };
+  const shrink = async (file) => {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  };
+  photoInput.addEventListener("change", async () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+    uploading = true;
+    photoLabel.textContent = "Uploading…";
+    try {
+      let blob = file;
+      try { blob = await shrink(file); } catch { /* send the original; the server resizes too */ }
+      const body = new FormData();
+      body.append("file", blob, "photo.jpg");
+      const resp = await fetch("/api/images", { method: "POST", body });
+      if (!resp.ok) throw new Error((await resp.json()).detail || "Upload failed");
+      setPhoto((await resp.json()).url);
+    } catch (err) {
+      alert(`Couldn't add that photo. ${err.message}`);
+      photoLabel.textContent = imageUrl.value ? "Change Photo" : "Add Photo";
+    } finally {
+      uploading = false;
+      photoInput.value = "";
+    }
+  });
+  photo.querySelector(".photo-remove").addEventListener("click", () => setPhoto(""));
+
+  const value = (id) => editor.querySelector(`#${id}`)?.value ?? "";
+  const collect = (kind) => [...document.querySelectorAll(`.ed-groups[data-kind="${kind}"] .ed-group`)].map((g) => {
+    const lines = [...g.querySelectorAll(".ed-line")];
+    return kind === "ingredients"
+      ? { name: g.querySelector(".ed-group-name").value,
+          items: lines.map((f) => ("amount" in f.dataset
+            ? { line: f.value, amount: f.dataset.amount, item: f.dataset.item }
+            : { line: f.value })) }
+      : { name: g.querySelector(".ed-group-name").value, steps: lines.map((f) => f.value) };
+  });
+
+  editor.addEventListener("submit", (e) => {
+    if (uploading) { e.preventDefault(); alert("Wait for the photo to finish uploading."); return; }
+    if (!value("title").trim()) { e.preventDefault(); alert("Give the recipe a name first."); editor.querySelector("#title").focus(); return; }
+    editor.elements.recipe.value = JSON.stringify({
+      title: value("title"), description: value("description"), image_url: imageUrl.value,
+      servings: value("servings"), prep_time: value("prep_time"), cook_time: value("cook_time"),
+      total_time: value("total_time"), tags: value("tags"), notes: value("notes"),
+      needs_review: !!editor.querySelector("#needs_review")?.checked,
+      ingredient_groups: collect("ingredients"), step_groups: collect("steps"),
+    });
+    dirty = false;
+  });
+
+  document.querySelector("[data-cancel]")?.addEventListener("click", (e) => {
+    if (!dirty) return;
+    if (confirm("Discard your changes?")) dirty = false;  // don't ask again on the way out
+    else { e.preventDefault(); e.stopImmediatePropagation(); }
+  });
+  addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+}

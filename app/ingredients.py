@@ -25,6 +25,7 @@ COUNT_UNITS = {
     "clove", "cloves", "can", "cans", "jar", "jars", "package", "packages", "pkg",
     "stick", "sticks", "slice", "slices", "sprig", "sprigs", "bunch", "bunches",
     "head", "heads", "handful", "handfuls", "piece", "pieces",
+    "packet", "packets", "envelope", "envelopes", "bottle", "bottles", "box", "boxes", "bag", "bags",
 }
 UNITS = US_UNITS | METRIC_UNITS | COUNT_UNITS
 
@@ -185,6 +186,9 @@ def _tails(words: list[str]) -> list[str]:
     ]
 
 
+_SECTION_STOPWORDS = {"main", "with", "serve", "serving", "make", "recipe", "optional", "base"}
+
+
 def _sentence_around(text: str, start: int, end: int) -> str:
     left = max(text.rfind(c, 0, start) for c in ".!?;")
     rights = [i for i in (text.find(c, end) for c in ".!?;") if i != -1]
@@ -254,6 +258,13 @@ def annotate_steps(ingredient_groups: list[dict], step_groups: list[dict]) -> li
     # Longest first, so "brown sugar" claims its words before "sugar" can.
     terms = sorted(amounts_by_term, key=len, reverse=True)
     group_names = [(g.get("name") or "").lower() for g in ingredient_groups]
+    # Distinctive words of each section name ("garnish", "frosting"); not ones that are also
+    # ingredient words, or "Cream Cheese Frosting" would claim every mention of cream cheese.
+    ingredient_words = {w for term in amounts_by_term for w in term.split()}
+    group_words = [
+        {w for w in re.findall(r"[a-z]+", name) if len(w) > 3 and w not in ingredient_words and w not in _SECTION_STOPWORDS}
+        for name in group_names
+    ]
 
     current_group = 0
     out = []
@@ -270,9 +281,18 @@ def annotate_steps(ingredient_groups: list[dict], step_groups: list[dict]) -> li
                     if not any(s < m.end() and m.start() < e for s, e, _ in found):
                         found.append((m.start(), m.end(), term))
                         break
+            # Naming a section in the step ("then garnish with lemon") points what follows at that
+            # section's ingredients: the garnish lemon, not the 6 juiced ones.
+            section_mentions = sorted(
+                (m.start(), gi) for gi, words in enumerate(group_words) for w in words
+                for m in re.finditer(rf"\b{re.escape(w)}", step, re.IGNORECASE)
+            )
             # Resolve each mention to an ingredient, in reading order so current_group tracks the text.
             mentions = []
             for start, end, term in sorted(found):
+                named = [gi for pos, gi in section_mentions if pos < start]
+                if named:
+                    current_group = named[-1]
                 candidates = amounts_by_term[term]
                 amount, current_group, ii = next((c for c in candidates if c[1] == current_group), candidates[0])
                 stated = bool(_AMOUNT_AFTER_RE.match(step, end) or _QTY_BEFORE_RE.search(step[:start]))

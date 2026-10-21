@@ -127,3 +127,55 @@ def test_one_step_sections_are_step_titles():
     assert _sectioned_steps(raw) == [
         {"name": "", "steps": ["Cut the onions.", "Fry them.", "Add salt.", "Ladle it out.", "Enjoy!"]}
     ]
+
+
+def test_form_editor_round_trip(client):
+    import json
+    created = client.post("/api/recipes", json={
+        "title": "Ranch Roast", "source_url": "https://example.com/r",
+        "ingredient_groups": [{"name": "", "items": [{"amount": "1 (3 to 4 lb)", "item": "chuck roast"}]}],
+        "step_groups": [{"name": "", "steps": ["Cook the roast."]}],
+    }).json()
+    assert 'value="1 (3 to 4 lb) chuck roast"' in client.get(f"/r/{created['id']}/edit").text
+    form = {
+        "title": "Ranch Roast", "description": "", "image_url": "/images/x.jpg", "servings": "8",
+        "prep_time": "5", "cook_time": "480", "total_time": "", "tags": "Beef, Slow Cooker", "notes": "",
+        "needs_review": False,
+        "ingredient_groups": [{"name": "", "items": [
+            {"line": "1 (3 to 4 lb) chuck roast", "amount": "1 (3 to 4 lb)", "item": "chuck roast"},  # untouched
+            {"line": "1 packet ranch dressing mix"},                                                  # new line
+            {"line": "   "},                                                                          # blank row
+        ]}],
+        "step_groups": [{"name": "", "steps": ["Sprinkle the ranch dressing mix over the roast.", ""]}],
+    }
+    r = client.post(f"/r/{created['id']}/edit", data={"recipe": json.dumps(form)}, follow_redirects=False)
+    assert r.status_code == 303
+    saved = client.get(f"/api/recipes/{created['id']}").json()
+    assert saved["ingredient_groups"][0]["items"] == [
+        {"amount": "1 (3 to 4 lb)", "item": "chuck roast"}, {"amount": "1 packet", "item": "ranch dressing mix"},
+    ]
+    assert saved["step_groups"][0]["steps"] == ["Sprinkle the ranch dressing mix (1 packet) over the roast (1)."]
+    assert saved["tags"] == ["beef", "slow cooker"] and saved["cook_time"] == 480 and saved["total_time"] is None
+    assert saved["source_url"] == "https://example.com/r" and saved["image_url"] == "/images/x.jpg"
+
+
+def test_new_recipe_from_form(client):
+    import json
+    form = {"title": "Toast", "ingredient_groups": [{"name": "", "items": [{"line": "2 slices bread"}]}],
+            "step_groups": [{"name": "", "steps": ["Toast the bread."]}]}
+    r = client.post("/new", data={"recipe": json.dumps(form)}, follow_redirects=False)
+    assert r.status_code == 303 and "New Recipe" in client.get("/new").text
+
+
+def test_image_upload(client):
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (3000, 2000), "orange").save(buf, "PNG")
+    r = client.post("/api/images", files={"file": ("p.png", buf.getvalue(), "image/png")})
+    assert r.status_code == 201
+    url = r.json()["url"]
+    img = client.get(url)
+    assert img.status_code == 200 and Image.open(io.BytesIO(img.content)).size == (1600, 1067)
+    bad = client.post("/api/images", files={"file": ("x.txt", b"not an image", "text/plain")})
+    assert bad.status_code == 422

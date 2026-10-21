@@ -30,6 +30,14 @@ via the iOS share sheet. Combining lives in `app/shopping.py`: same ingredient a
 added up (volumes in tsp, weights in oz, then shown in a natural unit); unconvertible amounts sit
 side by side. `GET /api/shopping-list?r=1&r=2` returns the same data as JSON.
 
+## Where recipes live
+
+The real recipe book is the one on the NAS. Code changes ship as a new image (push to `main`); recipe
+changes go straight to the NAS through its API with `rb.py`. Never copy database files around.
+The `data/` folder in this repo is a local sandbox for testing UI changes, not the real data.
+
+Uploaded photos are stored next to the database (`/data/images`) and referenced as `/images/<name>.jpg`.
+
 ## Working with the live recipe list
 
 Use `scripts/rb.py` (reads `RECIPEBOOK_URL` and the Cloudflare Access service token from `.env`):
@@ -40,6 +48,8 @@ python3 scripts/rb.py get 12 > /tmp/r.json # edit, then:
 python3 scripts/rb.py put 12 /tmp/r.json
 python3 scripts/rb.py add new.json         # create from scratch
 python3 scripts/rb.py import <url>         # server-side scrape
+python3 scripts/rb.py export backup.json   # everything, uploaded photos embedded
+python3 scripts/rb.py restore backup.json  # into RECIPEBOOK_URL; skips titles already there
 ```
 
 **"Clean up pending recipes"** means: for each `needs_review` recipe, regroup ingredients by
@@ -64,3 +74,6 @@ docker run --rm -v "$PWD:/w" -w /w recipebook-test python -m pytest -q -p no:cac
 ```
 
 Run locally: `docker build -t recipebook . && docker run --rm -p 8420:8000 -v "$PWD/data:/data" recipebook`
+
+The web editor (`/r/<id>/edit`) is a form for non-technical use; `/r/<id>/edit/text` keeps the
+plain-text format (`app/textformat.py`).

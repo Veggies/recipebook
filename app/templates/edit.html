@@ -1,37 +1,111 @@
 {% extends "base.html" %}
-{% block title %}{{ "Edit " ~ r.title if r else "New recipe" }}{% endblock %}
+{% block title %}{{ "Edit " ~ r.title if r else "New Recipe" }}{% endblock %}
 {% block body_class %}edit-page{% endblock %}
-{% block bar_left %}<a class="glass-btn" href="{{ '/r/%d' % r.id if r else '/' }}" data-nav="back">Cancel</a>{% endblock %}
-{% block bar_title %}{{ "Edit" if r else "New Recipe" }}{% endblock %}
-{% block bar_right %}<button class="glass-btn primary" form="edit-form">Save</button>{% endblock %}
+{% block bar_left %}<a class="glass-btn" href="{{ '/r/%d' % r.id if r else '/' }}" data-nav="back" data-cancel>Cancel</a>{% endblock %}
+{% block bar_title %}{{ "Edit Recipe" if r else "New Recipe" }}{% endblock %}
+{% block bar_right %}<button class="glass-btn primary" form="editor" data-save>Save</button>{% endblock %}
 {# Editing is a focused, modal task in iOS - no tab bar. #}
 {% block tabbar %}{% endblock %}
+
+{# One ingredient line, typed naturally ("2 cups flour"); the amount is split off on save.
+   data-amount/data-item keep the stored split so untouched lines round-trip exactly. #}
+{% macro ing_row(ing=none) -%}
+<li class="ed-row">
+  <input class="ed-line" type="text" value="{{ ((ing.amount ~ ' ' ~ ing.item)|trim) if ing else '' }}"
+         {% if ing %}data-amount="{{ ing.amount }}" data-item="{{ ing.item }}"{% endif %}
+         placeholder="e.g. 2 cups flour" enterkeyhint="next" autocomplete="off">
+  <button type="button" class="ed-del" aria-label="Remove ingredient">−</button>
+</li>
+{%- endmacro %}
+
+{% macro step_row(text="") -%}
+<li class="ed-row ed-step">
+  <textarea class="ed-line" rows="1" placeholder="Describe this step…" enterkeyhint="next">{{ text }}</textarea>
+  <button type="button" class="ed-del" aria-label="Remove step">−</button>
+</li>
+{%- endmacro %}
+
+{% macro group(kind, name="", rows=[]) -%}
+<section class="ed-group" data-kind="{{ kind }}">
+  <input class="ed-group-name" type="text" value="{{ name }}"
+         placeholder="{{ 'Section name, e.g. Frosting (optional)' if kind == 'ingredients' else 'Section name (optional)' }}">
+  <ol class="list ed-rows {{ 'ed-steps' if kind == 'steps' }}">
+    {%- for row in rows %}{{ ing_row(row) if kind == "ingredients" else step_row(row) }}{% endfor -%}
+  </ol>
+  <button type="button" class="ed-add">+ Add {{ "Ingredient" if kind == "ingredients" else "Step" }}</button>
+  <button type="button" class="ed-del-group">Remove Section</button>
+</section>
+{%- endmacro %}
+
 {% block content %}
-<form id="edit-form" method="post" class="edit-form">
-  <textarea name="text" class="editor" spellcheck="true" autocapitalize="sentences">{{ text }}</textarea>
+<form id="editor" method="post" action="{{ '/r/%d/edit' % r.id if r else '/new' }}" class="editor-form" novalidate>
+  <input type="hidden" name="recipe">
+  <input type="hidden" id="image_url" value="{{ r.image_url if r else '' }}">
+
+  <div class="photo-pick{% if r and r.image_url %} has-photo{% endif %}">
+    <img class="photo-preview" src="{{ r.image_url if r else '' }}" alt="" referrerpolicy="no-referrer">
+    <label class="photo-btn">
+      <input type="file" accept="image/*" id="photo-file" hidden>
+      <span data-photo-label>{{ "Change Photo" if r and r.image_url else "Add Photo" }}</span>
+    </label>
+    <button type="button" class="photo-remove link-btn">Remove Photo</button>
+  </div>
+
+  <ul class="list form-list">
+    <li><input id="title" class="title-input" type="text" value="{{ r.title if r else '' }}" placeholder="Recipe name" required></li>
+    <li><textarea id="description" rows="2" placeholder="Short description (optional)">{{ r.description if r else '' }}</textarea></li>
+  </ul>
+
+  <ul class="list form-list">
+    <li class="field"><label for="servings">Serves</label><input id="servings" type="text" value="{{ r.servings if r else '' }}" placeholder="4"></li>
+    <li class="times">
+      <label>Prep<input id="prep_time" type="number" inputmode="numeric" min="0" value="{{ r.prep_time or '' if r }}" placeholder="min"></label>
+      <label>Cook<input id="cook_time" type="number" inputmode="numeric" min="0" value="{{ r.cook_time or '' if r }}" placeholder="min"></label>
+      <label>Total<input id="total_time" type="number" inputmode="numeric" min="0" value="{{ r.total_time or '' if r }}" placeholder="min"></label>
+    </li>
+    <li class="field"><label for="tags">Tags</label><input id="tags" type="text" value="{{ r.tags|join(', ') if r else '' }}" placeholder="dinner, soup" autocapitalize="none"></li>
+  </ul>
+
+  <h2 class="section-h">Ingredients</h2>
+  <p class="ed-hint">One per line, like “2 cups flour”. Press return for the next one.</p>
+  <div class="ed-groups" data-kind="ingredients">
+    {% for g in (r.ingredient_groups if r and r.ingredient_groups else [{"name": "", "items": []}]) %}
+    {{ group("ingredients", g.name, g["items"] or [none]) }}
+    {% endfor %}
+  </div>
+  <button type="button" class="button secondary ed-add-group" data-kind="ingredients">Add Section</button>
+
+  <h2 class="section-h">Steps</h2>
+  <p class="ed-hint">Amounts are added to the steps for you, e.g. “Add the cumin” becomes “Add the cumin (1 tsp)”.</p>
+  <div class="ed-groups" data-kind="steps">
+    {% for g in (r.step_groups if r and r.step_groups else [{"name": "", "steps": []}]) %}
+    {{ group("steps", g.name, g.steps or [""]) }}
+    {% endfor %}
+  </div>
+  <button type="button" class="button secondary ed-add-group" data-kind="steps">Add Section</button>
+
+  <h2 class="section-h">Notes</h2>
+  <ul class="list form-list">
+    <li><textarea id="notes" rows="3" placeholder="Swaps, timings, what you'd change next time…">{{ r.notes if r else '' }}</textarea></li>
+  </ul>
 
   {% if r %}
   <label class="toggle-row">
     <span>Needs review</span>
-    <input type="checkbox" name="needs_review" class="switch" {% if r.status == "needs_review" %}checked{% endif %}>
+    <input type="checkbox" id="needs_review" class="switch" {% if r.status == "needs_review" %}checked{% endif %}>
   </label>
   {% endif %}
 </form>
 
-<details class="help">
-  <summary>Format help</summary>
-  <ul>
-    <li><code>== Ingredients: Frosting ==</code> starts an ingredient group (name optional).</li>
-    <li>Ingredient lines: <code>1 cup | powdered sugar</code>. Without <code>|</code> the amount is detected.</li>
-    <li><code>== Steps: Cake ==</code> starts a step group; one step per line.</li>
-    <li>Amounts are added to steps automatically on save, e.g. “add the cumin (1 tsp)”.</li>
-    <li>Fields: Title, Servings, Prep/Cook/Total minutes, Source, Image, Tags, Description.</li>
-  </ul>
-</details>
-
 {% if r %}
-<form method="post" action="/r/{{ r.id }}/delete" class="danger-zone" data-confirm="Delete this recipe?">
+<form method="post" action="/r/{{ r.id }}/delete" class="danger-zone" data-confirm="Delete this recipe? This can't be undone.">
   <button class="button danger">Delete Recipe</button>
 </form>
+<p class="hint"><a href="/r/{{ r.id }}/edit/text">Edit as plain text</a></p>
 {% endif %}
+
+<template id="tpl-ingredients-row">{{ ing_row() }}</template>
+<template id="tpl-steps-row">{{ step_row() }}</template>
+<template id="tpl-ingredients-group">{{ group("ingredients", "", [none]) }}</template>
+<template id="tpl-steps-group">{{ group("steps", "", [""]) }}</template>
 {% endblock %}
