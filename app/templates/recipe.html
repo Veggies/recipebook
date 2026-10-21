@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_icons.html" import back %}
 {% block title %}{{ r.title }}{% endblock %}
 {% block body_class %}recipe-page{% endblock %}
-{% block bar_left %}<a class="bar-btn back" href="/">Recipes</a>{% endblock %}
-{% block bar_title %}<span class="bar-title-text">{{ r.title }}</span>{% endblock %}
-{% block bar_right %}<a class="bar-btn" href="/r/{{ r.id }}/edit">Edit</a>{% endblock %}
+{% block bar_left %}{{ back("/", "Recipes") }}{% endblock %}
+{% block bar_title %}{{ r.title }}{% endblock %}
+{% block bar_right %}<a class="glass-btn" href="/r/{{ r.id }}/edit">Edit</a>{% endblock %}
 {% block content %}
 {% if r.image_url %}
 <img class="hero" src="{{ r.image_url }}" alt="" referrerpolicy="no-referrer">

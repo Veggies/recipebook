@@ -1,8 +1,7 @@
 {% extends "base.html" %}
-{% block bar_right %}
-  <a class="bar-btn" href="/new" aria-label="Write a recipe">Write</a>
-  <a class="bar-btn bar-btn-icon" href="/add" aria-label="Add from link">+</a>
-{% endblock %}
+{% from "_icons.html" import icon %}
+{% block bar_title %}Recipes{% endblock %}
+{% block bar_right %}<a class="glass-btn round" href="/new" aria-label="Write a recipe">{{ icon("compose", 20) }}</a>{% endblock %}
 {% block content %}
 <h1 class="large-title">Recipes</h1>
 
@@ -10,8 +9,6 @@
   <input type="search" name="q" value="{{ q }}" placeholder="Search" autocomplete="off" enterkeyhint="search">
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
 </form>
-
-<a class="button secondary shop-btn" href="/shop">Build Shopping List</a>
 
 {% if tags %}
 <nav class="chips">

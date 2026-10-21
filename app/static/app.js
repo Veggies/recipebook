@@ -1,13 +1,42 @@
 // Small progressive enhancements; every page works without this file.
 
-// Hairline under the nav bar once content scrolls beneath it (and show the
-// compact title on recipe pages once the large title is gone).
+// Large title collapses into the nav bar: once it scrolls under the bar, the bar frosts
+// over and shows the small title.
 const bar = document.querySelector(".bar");
 const largeTitle = document.querySelector(".large-title");
 if (bar && largeTitle && "IntersectionObserver" in window) {
+  document.body.classList.add("has-large-title");
   new IntersectionObserver(([e]) => bar.classList.toggle("scrolled", !e.isIntersecting), {
-    rootMargin: "-44px 0px 0px 0px",
+    rootMargin: `-${bar.offsetHeight}px 0px 0px 0px`,
   }).observe(largeTitle);
+}
+
+// Label each navigation for the page transition in base.html: links into the app push,
+// data-nav="back" pops, data-nav="tab" switches tabs without animating.
+const markNav = (kind) => { try { sessionStorage.setItem("nav", kind); } catch {} };
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a[href]");
+  if (!a || a.target || a.origin !== location.origin || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const kind = a.dataset.nav || "push";
+  if (kind !== "tab") markNav(kind);
+});
+
+// Home Screen app: swipe in from the left edge to go back, as in native apps (Safari
+// already does this in the browser, so only standalone mode needs it).
+const backLink = document.querySelector('a[data-nav="back"]');
+if (backLink && matchMedia("(display-mode: standalone)").matches) {
+  let start = null;
+  addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    start = t.clientX < 24 ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true });
+  addEventListener("touchend", (e) => {
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x, dy = Math.abs(t.clientY - start.y);
+    start = null;
+    if (dx > 70 && dy < dx / 2) { markNav("back"); location.href = backLink.href; }
+  }, { passive: true });
 }
 
 // Recipe page: tap a step to make it current; earlier steps are marked done.
@@ -77,6 +106,7 @@ if (steps.length && "wakeLock" in navigator) {
 const addForm = document.querySelector("form[data-autosubmit]");
 const showImporting = () => {
   document.querySelector(".add-form").hidden = true;
+  document.querySelector(".add-more")?.setAttribute("hidden", "");
   document.querySelector(".importing").hidden = false;
 };
 if (addForm) {

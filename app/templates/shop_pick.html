@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Shopping List{% endblock %}
-{% block bar_left %}<a class="bar-btn back" href="/">Recipes</a>{% endblock %}
+{% block bar_title %}Shopping{% endblock %}
 {% block content %}
-<h1 class="large-title">What are you making?</h1>
-<p class="lead">Pick the recipes you're shopping for.</p>
+<h1 class="large-title">Shopping</h1>
+<p class="lead">What are you making? Pick the recipes you're shopping for.</p>
 
 <form action="/shop/list" method="get" class="pick-form">
   <ul class="cards pick-list">

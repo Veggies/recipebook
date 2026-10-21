@@ -1,18 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Add recipe{% endblock %}
-{% block bar_left %}<a class="bar-btn" href="/">Cancel</a>{% endblock %}
-{% block bar_title %}<span class="bar-title-text">Add from Link</span>{% endblock %}
+{% block title %}Add Recipe{% endblock %}
+{% block bar_title %}Add Recipe{% endblock %}
 {% block content %}
+<h1 class="large-title">Add Recipe</h1>
 <form method="post" action="/add" class="add-form" {% if url and not error %}data-autosubmit{% endif %}>
+  <h3 class="group-h">From a link</h3>
   <div class="list">
-    <input type="url" name="url" value="{{ url }}" placeholder="https://…" required autofocus inputmode="url" autocomplete="off">
+    <input type="url" name="url" value="{{ url }}" placeholder="https://…" required inputmode="url" autocomplete="off">
   </div>
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <button class="button" type="submit">Import Recipe</button>
-  <p class="hint">Tip: on iPhone, use the “Add to Recipe Book” Shortcut from the Share Sheet.</p>
+  <p class="hint">On iPhone, the “Add to Recipe Book” Shortcut in the Share Sheet does this from any recipe site.</p>
 </form>
 <div class="importing" hidden>
   <div class="spinner"></div>
   <p>Importing recipe…</p>
+</div>
+<div class="add-more">
+  <h3 class="group-h">Or</h3>
+  <ul class="list nav-list">
+    <li><a href="/new">Write a Recipe Yourself</a></li>
+  </ul>
 </div>
 {% endblock %}

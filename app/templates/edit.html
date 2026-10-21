@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ "Edit " ~ r.title if r else "New recipe" }}{% endblock %}
 {% block body_class %}edit-page{% endblock %}
-{% block bar_left %}<a class="bar-btn" href="{{ '/r/%d' % r.id if r else '/' }}">Cancel</a>{% endblock %}
-{% block bar_title %}<span class="bar-title-text">{{ "Edit" if r else "New Recipe" }}</span>{% endblock %}
-{% block bar_right %}<button class="bar-btn bold" form="edit-form">Save</button>{% endblock %}
+{% block bar_left %}<a class="glass-btn" href="{{ '/r/%d' % r.id if r else '/' }}" data-nav="back">Cancel</a>{% endblock %}
+{% block bar_title %}{{ "Edit" if r else "New Recipe" }}{% endblock %}
+{% block bar_right %}<button class="glass-btn primary" form="edit-form">Save</button>{% endblock %}
+{# Editing is a focused, modal task in iOS - no tab bar. #}
+{% block tabbar %}{% endblock %}
 {% block content %}
 <form id="edit-form" method="post" class="edit-form">
   <textarea name="text" class="editor" spellcheck="true" autocapitalize="sentences">{{ text }}</textarea>

@@ -209,6 +209,7 @@ def shop_list(request: Request, r: list[int] = Query(default=[])):
     return templates.TemplateResponse(request, "shop_list.html", {
         "recipes": recipes, "groups": build_shopping_list(recipes),
         "list_id": ",".join(str(x["id"]) for x in sorted(recipes, key=lambda x: x["id"])),
+        "shop_back": "/shop?" + "&".join(f"r={x['id']}" for x in recipes),
     })
 
 

@@ -1,3 +1,6 @@
+{% from "_icons.html" import icon %}
+{%- set path = request.url.path -%}
+{%- set active_tab = "shop" if path.startswith("/shop") else "add" if path.startswith("/add") else "recipes" -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,24 +15,41 @@
   <script>
     // Applied before first paint so a chosen theme never flashes the other one.
     try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+    // Page transitions: push slides in, back slides out, tab switches don't animate (like iOS).
+    // The clicked link records the kind in sessionStorage; anything else (browser back,
+    // Safari's own swipe, form posts) skips the animation rather than doubling up with Safari's.
+    addEventListener("pagereveal", (e) => {
+      if (!e.viewTransition) return;
+      let kind = null;
+      try { kind = sessionStorage.getItem("nav"); sessionStorage.removeItem("nav"); } catch {}
+      if (kind === "push" || kind === "back") e.viewTransition.types.add(kind);
+      else e.viewTransition.skipTransition();
+    });
   </script>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/style.css?v=10">
+  <link rel="stylesheet" href="/static/style.css?v=12">
   <title>{% block title %}Recipe Book{% endblock %}</title>
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="bar">
     <div class="bar-inner">
       <div class="bar-left">{% block bar_left %}{% endblock %}</div>
-      <div class="bar-title">{% block bar_title %}{% endblock %}</div>
+      <div class="bar-title"><span class="bar-title-text">{% block bar_title %}{% endblock %}</span></div>
       <div class="bar-right">{% block bar_right %}{% endblock %}</div>
     </div>
   </header>
   <main class="page">
     {% block content %}{% endblock %}
   </main>
-  <script src="/static/app.js?v=8" defer></script>
+  {% block tabbar %}
+  <nav class="tabbar" aria-label="Sections">
+    <a href="/" data-nav="tab" {% if active_tab == "recipes" %}aria-current="page"{% endif %}>{{ icon("book") }}<span>Recipes</span></a>
+    <a href="/shop" data-nav="tab" {% if active_tab == "shop" %}aria-current="page"{% endif %}>{{ icon("cart") }}<span>Shopping</span></a>
+    <a href="/add" data-nav="tab" {% if active_tab == "add" %}aria-current="page"{% endif %}>{{ icon("plus") }}<span>Add</span></a>
+  </nav>
+  {% endblock %}
+  <script src="/static/app.js?v=9" defer></script>
 </body>
 </html>
