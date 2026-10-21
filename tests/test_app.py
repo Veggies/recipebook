@@ -76,9 +76,26 @@ def test_step_sections_are_kept():
 
 def test_blog_notes_not_imported_and_refs_stripped():
     from app.scrape import parse_recipe
-    html = HTML.replace("Add the cumin.", "Add the cumin (Note 1). See Note 2 for options.") + (
+    html = HTML.replace("Add the cumin.", "Add the cumin (Note 1). See Note 2 for options.").replace(
+        '"recipeYield"', '"description":"Recipe video above. So good! See notes for toppings!","recipeYield"'
+    ) + (
         '<div class="wprm-recipe-notes"><span>1. Cumin: Toast it first.</span></div>'
     )
     recipe = parse_recipe(html, "https://example.com/chili")
     assert recipe["step_groups"][0]["steps"][1] == "Add the cumin."
     assert recipe["notes"] == ""
+    assert recipe["description"] == "So good!"
+
+
+def test_add_note_from_recipe_page(client):
+    created = client.post("/api/recipes", json={
+        "title": "Toast", "status": "needs_review",
+        "ingredient_groups": [{"name": "", "items": [{"amount": "2 slices", "item": "bread"}]}],
+        "step_groups": [{"name": "", "steps": ["Toast the bread."]}],
+    }).json()
+    assert "Add a Note" in client.get(f"/r/{created['id']}").text
+    client.post(f"/r/{created['id']}/notes", data={"notes": "Use sourdough.\r\n\r\nButter while hot."})
+    saved = client.get(f"/api/recipes/{created['id']}").json()
+    assert saved["notes"] == "Use sourdough.\n\nButter while hot."
+    assert saved["status"] == "needs_review"
+    assert "Edit Notes" in client.get(f"/r/{created['id']}").text

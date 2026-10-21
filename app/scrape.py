@@ -13,7 +13,8 @@ from .ingredients import parse_ingredient
 # Blogs' recipe cards refer to their own notes ("Note 3"), which aren't imported.
 _NOTE_REF_RES = [
     re.compile(r"\s*\((?:see\s+)?(?:the\s+)?notes?\b[^)]*\)", re.IGNORECASE),  # "(Note 3 Slow Cooker)", "(see Notes)"
-    re.compile(r"\s*See (?:the )?notes?\b[^.]*\.", re.IGNORECASE),  # "See Note 7 for more serving options."
+    re.compile(r"\s*See (?:the )?notes?\b[^.!]*[.!]", re.IGNORECASE),  # "See Note 7 for more serving options."
+    re.compile(r"[^.!]*\bvideo (?:above|below)\b[^.!]*[.!]\s*", re.IGNORECASE),  # "Recipe video above."
 ]
 
 
@@ -62,7 +63,7 @@ def parse_recipe(html: str, url: str) -> dict:
 
     return {
         "title": title.strip(),
-        "description": (_try(s.description) or "").strip(),
+        "description": _strip_note_refs(_try(s.description) or ""),
         "source_url": url,
         "image_url": _try(s.image) or "",
         "servings": _try(s.yields) or "",

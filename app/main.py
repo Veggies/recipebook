@@ -90,6 +90,7 @@ def fmt_minutes(minutes) -> str:
 templates.env.filters["step"] = render_step
 templates.env.filters["note_paragraphs"] = note_paragraphs
 templates.env.filters["minutes"] = fmt_minutes
+templates.env.filters["serves"] = lambda v: re.sub(r"\s*(servings?|serves|people|portions)$", "", str(v), flags=re.IGNORECASE)
 
 
 # --- pages ------------------------------------------------------------------
@@ -145,6 +146,14 @@ def edit(request: Request, recipe_id: int, text: str = Form(...), needs_review: 
     recipe["status"] = "needs_review" if needs_review else "ready"
     saved = db.update(recipe_id, normalize(recipe)) or _not_found()
     return RedirectResponse(f"/r/{saved['id']}", status_code=303)
+
+
+@app.post("/r/{recipe_id}/notes")
+def save_notes(recipe_id: int, notes: str = Form("")):
+    recipe = db.get(recipe_id) or _not_found()
+    recipe["notes"] = notes.replace("\r\n", "\n").strip()
+    db.update(recipe_id, normalize(recipe))
+    return RedirectResponse(f"/r/{recipe_id}#steps", status_code=303)
 
 
 @app.post("/r/{recipe_id}/delete")

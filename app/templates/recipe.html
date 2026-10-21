@@ -16,7 +16,7 @@
 {% endif %}
 
 <div class="meta">
-  {% if r.servings %}<div><span>Serves</span>{{ r.servings }}</div>{% endif %}
+  {% if r.servings %}<div><span>Serves</span>{{ r.servings|serves }}</div>{% endif %}
   {% if r.prep_time %}<div><span>Prep</span>{{ r.prep_time|minutes }}</div>{% endif %}
   {% if r.cook_time %}<div><span>Cook</span>{{ r.cook_time|minutes }}</div>{% endif %}
   {% if r.total_time %}<div><span>Total</span>{{ r.total_time|minutes }}</div>{% endif %}
@@ -24,8 +24,15 @@
 
 {% if r.description %}<p class="description">{{ r.description }}</p>{% endif %}
 
+{% set n_ing = r.ingredient_groups|map(attribute="items")|map("length")|sum %}
+{% set n_steps = r.step_groups|map(attribute="steps")|map("length")|sum %}
+<div class="tabs segmented" role="tablist" aria-label="Recipe sections" hidden>
+  <button type="button" role="tab" data-tab="ingredients" aria-controls="tab-ingredients">Ingredients <span>{{ n_ing }}</span></button>
+  <button type="button" role="tab" data-tab="steps" aria-controls="tab-steps">Steps <span>{{ n_steps }}</span></button>
+</div>
+
 <div class="recipe-layout">
-  <div class="side">
+  <div class="side" id="tab-ingredients" role="tabpanel">
     {% if before.ahead or before.prep %}
     <section class="before" aria-labelledby="before-h">
       <h2 id="before-h" class="section-h">Before You Start</h2>
@@ -76,7 +83,7 @@
     </section>
   </div>
 
-  <section class="steps" aria-labelledby="steps-h">
+  <section class="steps" id="tab-steps" role="tabpanel" aria-labelledby="steps-h">
     <h2 id="steps-h" class="section-h">Steps</h2>
     {% set n = namespace(i=0) %}
     {% for g in r.step_groups %}
@@ -89,14 +96,21 @@
     </ol>
     {% endfor %}
 
-    {% if r.notes %}
     <h2 class="section-h">Notes</h2>
+    {% if r.notes %}
     <div class="list notes">
       {% for para in r.notes|note_paragraphs %}
       <p>{{ para }}</p>
       {% endfor %}
     </div>
     {% endif %}
+    <details class="note-editor">
+      <summary class="button secondary">{{ "Edit Notes" if r.notes else "Add a Note" }}</summary>
+      <form method="post" action="/r/{{ r.id }}/notes">
+        <textarea name="notes" class="editor note-input" placeholder="Swaps, timings, what you'd change next time…">{{ r.notes }}</textarea>
+        <button class="button" type="submit">Save Notes</button>
+      </form>
+    </details>
   </section>
 </div>
 

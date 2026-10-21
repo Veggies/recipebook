@@ -26,6 +26,37 @@ steps.forEach((step, i) => {
   });
 });
 
+// Recipe page on a phone: Ingredients | Steps switch. Each tab keeps its own scroll
+// position, so checking an amount and switching back lands on the same step.
+const tabs = document.querySelector(".tabs");
+const layout = document.querySelector(".recipe-layout");
+if (tabs && layout) {
+  const buttons = [...tabs.querySelectorAll("[data-tab]")];
+  const scrollPos = {};
+  const show = (name) => {
+    const current = layout.dataset.tab;
+    if (current) scrollPos[current] = window.scrollY;
+    layout.dataset.tab = name;
+    buttons.forEach((b) => {
+      const on = b.dataset.tab === name;
+      b.setAttribute("aria-selected", String(on));
+      b.setAttribute("aria-pressed", String(on));
+    });
+    if (current && current !== name) {
+      // First visit to a tab: start at its top (switch pinned), unless we're still above that.
+      // The layout isn't sticky, so its position is a stable reference; the switch's isn't.
+      const pinTop = layout.getBoundingClientRect().top + window.scrollY - tabs.offsetHeight - bar.offsetHeight - 8;
+      window.scrollTo(0, scrollPos[name] ?? Math.min(window.scrollY, pinTop));
+    }
+  };
+  tabs.hidden = false;
+  buttons.forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+  // "#steps" opens the Steps tab (saving a note returns there); drop it so a reload starts fresh.
+  const initialTab = location.hash === "#steps" ? "steps" : "ingredients";
+  if (location.hash === "#steps") history.replaceState(null, "", location.pathname);
+  show(initialTab);
+}
+
 // Keep the screen awake while a recipe is open.
 if (steps.length && "wakeLock" in navigator) {
   let lock = null;
