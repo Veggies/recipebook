@@ -1,6 +1,5 @@
 # Paste into TrueNAS: Apps > Discover Apps > ⋮ > Install via YAML.
 # Set the dataset path. Sign-in is done by Cloudflare Access in front of it.
-# The image is private: TrueNAS needs a ghcr.io registry login (see README) to pull it.
 services:
   recipebook:
     image: ghcr.io/veggies/recipebook:latest
