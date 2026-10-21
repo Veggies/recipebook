@@ -15,10 +15,13 @@ states the amount of each ingredient it uses.
 Pushing to `main` runs the tests and publishes `ghcr.io/<you>/recipebook:latest`
 (see `.github/workflows/docker.yml`).
 
-After the first run, make the image public so TrueNAS can pull it without credentials:
-GitHub → your profile → **Packages** → `recipebook` → **Package settings** → **Change visibility → Public**.
-The image holds code only; your recipes live on the NAS. (Or keep it private and add a
-GHCR registry credential in TrueNAS with a `read:packages` token.)
+The repo and image are private, so TrueNAS needs a read-only token to pull the image:
+
+1. Create a classic token with only `read:packages`:
+   <https://github.com/settings/tokens/new?scopes=read:packages&description=TrueNAS%20recipebook>
+   (set expiry to "No expiration", or put a reminder in to renew it).
+2. In TrueNAS: **Apps → Configuration → Manage Container Registries** (the exact wording
+   varies a little by version) **→ Add**: registry `ghcr.io`, username `Veggies`, password = the token.
 
 ## 2. Install on TrueNAS SCALE
 
