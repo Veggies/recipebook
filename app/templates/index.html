@@ -53,7 +53,14 @@
 </div>
 {% endif %}
 
-{% if auth_enabled %}
-<form class="signout" action="/logout" method="post"><button class="link-btn">Sign out</button></form>
-{% endif %}
+<footer class="page-foot">
+  <div class="segmented" role="group" aria-label="Appearance">
+    <button type="button" data-theme-choice="auto">Auto</button>
+    <button type="button" data-theme-choice="light">Light</button>
+    <button type="button" data-theme-choice="dark">Dark</button>
+  </div>
+  {% if auth_enabled %}
+  <form action="/logout" method="post"><button class="link-btn">Sign out</button></form>
+  {% endif %}
+</footer>
 {% endblock %}

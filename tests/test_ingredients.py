@@ -15,6 +15,11 @@ from app.ingredients import annotate_steps, match_terms, parse_ingredient
     ("2 tomatoes", "2", "tomatoes"),
     ("1 and 1/3 cups (166g) all-purpose flour", "1 and 1/3 cups (166g)", "all-purpose flour"),
     ("8 ounces (224g) cream cheese, softened", "8 ounces (224g)", "cream cheese, softened"),
+    ("1 lb / 500g beef mince / ground beef", "1 lb", "beef mince / ground beef"),
+    ("800g / 28 oz can crushed tomato", "28 oz can", "crushed tomato"),
+    ("14 oz / 420g can red kidney beans", "14 oz can", "red kidney beans"),
+    ("3 garlic cloves (, minced)", "3", "garlic cloves, minced"),
+    ("1 red capsicum ((bell pepper), diced)", "1", "red capsicum (bell pepper), diced"),
 ])
 def test_parse_ingredient(line, amount, item):
     assert parse_ingredient(line) == {"amount": amount, "item": item}
@@ -63,6 +68,12 @@ def test_same_ingredient_in_two_groups_follows_the_current_group():
     ("large eggs, at room temperature", "Beat in the eggs one at a time."),
     ("unsalted butter, softened", "Cream the butter."),
     ("extra-virgin olive oil", "Heat the olive oil in a pan."),
+    ("garlic cloves, minced", "Add the garlic and onion."),
+    ("peeled, shredded, and coarsely chopped carrots*", "Whisk in the carrots."),
+    ("beef mince / ground beef", "Add the beef."),
+    ("packed light or dark brown sugar", "Whisk the oil and brown sugar."),
+    ("ripe tomatoes, chopped", "Add the tomato."),
+    ("pure vanilla extract", "Stir in vanilla."),
 ])
 def test_match_terms_finds_ingredient_by_its_common_name(item, step):
     terms = match_terms(item)
@@ -72,7 +83,32 @@ def test_match_terms_finds_ingredient_by_its_common_name(item, step):
 @pytest.mark.parametrize("item, step", [
     ("baking powder", "Add the baking soda."),
     ("chicken stock", "Season the chicken."),
+    ("packed light or dark brown sugar", "Use a light touch."),
 ])
 def test_match_terms_avoids_false_matches(item, step):
     terms = match_terms(item)
     assert not any(t in step.lower() for t in terms), f"{terms} wrongly matched {step!r}"
+
+
+def test_term_shared_by_two_ingredients_in_one_group_is_not_used():
+    out = _annotate(["2 tsp garlic powder", "1 tsp onion powder"], ["Add the garlic powder, then the rest of the powder."])
+    assert out == ["Add the garlic powder (2 tsp), then the rest of the powder."]
+
+
+def test_step_group_named_like_ingredient_group_uses_its_amounts():
+    groups = [
+        {"name": "Cake", "items": [parse_ingredient("1 cup butter")]},
+        {"name": "Frosting", "items": [parse_ingredient("1/2 cup butter")]},
+    ]
+    steps = [{"name": "Cake", "steps": ["Melt the butter."]}, {"name": "Frosting", "steps": ["Beat the butter."]}]
+    out = annotate_steps(groups, steps)
+    assert [g["steps"] for g in out] == [["Melt the butter (1 cup)."], ["Beat the butter (1/2 cup)."]]
+
+
+def test_note_reference_after_ingredient_does_not_block_amount():
+    assert _annotate(["1 tsp cayenne pepper"], ["Add cayenne pepper (Note 2)."]) == ["Add cayenne pepper (1 tsp) (Note 2)."]
+
+
+def test_ingredient_annotated_once_per_step():
+    out = _annotate(["8 oz cream cheese"], ["Beat the cream cheese. Cold cream cheese holds its shape."])
+    assert out == ["Beat the cream cheese (8 oz). Cold cream cheese holds its shape."]

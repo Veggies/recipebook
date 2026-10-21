@@ -4,11 +4,20 @@ import html as htmllib
 import re
 from types import SimpleNamespace
 
+from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import RequestException
 from recipe_scrapers import scrape_html
 
 from .ingredients import parse_ingredient
+
+# Recipe-card plugins that most food blogs use (WP Recipe Maker, Tasty Recipes, Mediavine Create).
+# Their notes aren't in the schema.org data, but steps often say "(Note 3)".
+NOTES_SELECTORS = ".wprm-recipe-notes, .tasty-recipes-notes-body, .mv-create-notes-content, .recipe-notes"
+_NOTE_REF_RES = [
+    re.compile(r"\s*\((?:see\s+)?(?:the\s+)?notes?\b[^)]*\)", re.IGNORECASE),  # "(Note 3 Slow Cooker)", "(see Notes)"
+    re.compile(r"\s*See (?:the )?notes?\b[^.]*\.", re.IGNORECASE),  # "See Note 7 for more serving options."
+]
 
 
 class ScrapeError(Exception):
@@ -49,6 +58,13 @@ def parse_recipe(html: str, url: str) -> dict:
     if not step_groups:
         steps = [_clean(step) for step in (_try(s.instructions_list) or []) if step.strip()]
         step_groups = [{"name": "", "steps": steps}] if steps else []
+    notes = _try(lambda: _notes(html)) or ""
+    if not notes:
+        # References to notes we couldn't capture only confuse.
+        for group in ingredient_groups:
+            group["items"] = [{**i, "item": _strip_note_refs(i["item"])} for i in group["items"]]
+        for group in step_groups:
+            group["steps"] = [_strip_note_refs(st) for st in group["steps"]]
 
     return {
         "title": title.strip(),
@@ -62,7 +78,7 @@ def parse_recipe(html: str, url: str) -> dict:
         "tags": [],
         "ingredient_groups": [g for g in ingredient_groups if g["items"]],
         "step_groups": step_groups,
-        "notes": "",
+        "notes": notes,
         "status": "needs_review",
     }
 
@@ -92,6 +108,25 @@ def _sectioned_steps(raw) -> list[dict]:
         groups[-1]["steps"].append(text)
     groups = [{**g, "steps": [st for st in g["steps"] if st]} for g in groups]
     return [g for g in groups if g["steps"]]
+
+
+def _notes(html: str) -> str:
+    """The recipe card's notes as plain paragraphs separated by blank lines."""
+    el = BeautifulSoup(html, "html.parser").select_one(NOTES_SELECTORS)
+    if not el:
+        return ""
+    for br in el.select("br"):
+        br.replace_with("\n")
+    for block in el.select("p, li, div, h3, h4, span[style*='block']"):
+        block.append("\n\n")
+    paragraphs = (" ".join(p.split()) for p in re.split(r"\n\s*\n", el.get_text()))
+    return "\n\n".join(p for p in paragraphs if p and p.lower() != "notes")
+
+
+def _strip_note_refs(text: str) -> str:
+    for pattern in _NOTE_REF_RES:
+        text = pattern.sub("", text)
+    return text.strip()
 
 
 def _clean(text) -> str:

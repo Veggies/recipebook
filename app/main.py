@@ -16,7 +16,9 @@ from markupsafe import Markup, escape
 from pydantic import BaseModel, Field, HttpUrl
 
 from . import db, textformat
-from .ingredients import annotate_steps, short_amount
+from .ingredients import short_amount
+from .prep import before_you_start
+from .tidy import tidy_recipe
 from .scrape import ScrapeError, scrape
 
 log = logging.getLogger("recipebook")
@@ -108,9 +110,7 @@ def logout():
 
 def normalize(recipe: dict) -> dict:
     """Enforce house rules on every save, whatever the recipe's origin."""
-    recipe["step_groups"] = annotate_steps(recipe.get("ingredient_groups", []), recipe.get("step_groups", []))
-    recipe["title"] = (recipe.get("title") or "").strip() or "Untitled recipe"
-    return recipe
+    return tidy_recipe(recipe)
 
 
 async def import_url(url: str) -> tuple[dict, bool]:
@@ -124,19 +124,39 @@ async def import_url(url: str) -> tuple[dict, bool]:
 
 
 _PAREN_RE = re.compile(r"\(([^()]+)\)")
+_NOTE_REF_RE = re.compile(r"\bNote (\d+)\b", re.IGNORECASE)
+_NOTE_START_RE = re.compile(r"^(\d+)[.)]\s")
 
 
-def highlight_amounts(step: str, recipe: dict) -> Markup:
-    """Render ingredient amounts in step text, e.g. "(2 cups)", as highlighted; leave "(177°C)" alone."""
+def render_step(step: str, recipe: dict) -> Markup:
+    """Highlight ingredient amounts like "(2 cups)" and link "Note 3" to the note."""
     amounts = {
         str(escape(a)).lower()
         for g in recipe.get("ingredient_groups", []) for i in g["items"] if i.get("amount")
         for a in (i["amount"], short_amount(i["amount"]))
     }
-    return Markup(_PAREN_RE.sub(
+    html = _PAREN_RE.sub(
         lambda m: f'<span class="amt">{m.group(1)}</span>' if m.group(1).lower() in amounts else m.group(0),
         str(escape(step)),
-    ))
+    )
+    return link_notes(Markup(html), recipe)
+
+
+def link_notes(text: str, recipe: dict) -> Markup:
+    html = str(escape(text))
+    if recipe.get("notes"):
+        html = _NOTE_REF_RE.sub(r'<a class="note-ref" href="#note-\1">\g<0></a>', html)
+    return Markup(html)
+
+
+def note_paragraphs(notes: str) -> list[tuple[str | None, str]]:
+    """[(anchor id or None, paragraph)] - numbered paragraphs ("3. Slow cooker: ...") get an anchor."""
+    out = []
+    for para in (p.strip() for p in (notes or "").split("\n\n")):
+        if para:
+            m = _NOTE_START_RE.match(para)
+            out.append((f"note-{m.group(1)}" if m else None, para))
+    return out
 
 
 def fmt_minutes(minutes) -> str:
@@ -146,7 +166,9 @@ def fmt_minutes(minutes) -> str:
     return f"{h} hr {m} min" if h and m else f"{h} hr" if h else f"{m} min"
 
 
-templates.env.filters["amounts"] = highlight_amounts
+templates.env.filters["step"] = render_step
+templates.env.filters["note_paragraphs"] = note_paragraphs
+templates.env.filters["link_notes"] = link_notes
 templates.env.filters["minutes"] = fmt_minutes
 templates.env.globals["auth_enabled"] = bool(APP_PASSWORD)
 
@@ -187,7 +209,7 @@ def index(request: Request, q: str = "", tag: str = ""):
 @app.get("/r/{recipe_id}", response_class=HTMLResponse)
 def view(request: Request, recipe_id: int):
     recipe = db.get(recipe_id) or _not_found()
-    return templates.TemplateResponse(request, "recipe.html", {"r": recipe})
+    return templates.TemplateResponse(request, "recipe.html", {"r": recipe, "before": before_you_start(recipe)})
 
 
 @app.get("/r/{recipe_id}/edit", response_class=HTMLResponse)

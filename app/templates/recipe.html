@@ -25,22 +25,56 @@
 {% if r.description %}<p class="description">{{ r.description }}</p>{% endif %}
 
 <div class="recipe-layout">
-  <section class="ingredients" aria-labelledby="ing-h">
-    <h2 id="ing-h" class="section-h">Ingredients</h2>
-    {% for g in r.ingredient_groups %}
-    {% if g.name %}<h3 class="group-h">{{ g.name }}</h3>{% endif %}
-    <ul class="list checklist">
-      {% for ing in g["items"] %}
-      <li>
-        <label>
-          <input type="checkbox">
-          <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item }}</span>
-        </label>
-      </li>
+  <div class="side">
+    {% if before.ahead or before.prep %}
+    <section class="before" aria-labelledby="before-h">
+      <h2 id="before-h" class="section-h">Before You Start</h2>
+      {% for a in before.ahead %}
+      <h3 class="group-h">{{ a.tip }}</h3>
+      <ul class="list checklist ahead">
+        {% for p in a["items"] %}
+        <li>
+          <label>
+            <input type="checkbox">
+            <span class="ing"><b>{{ p.amount }}</b> {{ p.item }}</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
       {% endfor %}
-    </ul>
-    {% endfor %}
-  </section>
+      {% if before.prep %}
+      <h3 class="group-h">Prep</h3>
+      <ul class="list checklist">
+        {% for p in before.prep %}
+        <li>
+          <label>
+            <input type="checkbox">
+            <span class="ing"><b>{{ p.amount }}</b> {{ p.item }}</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="ingredients" aria-labelledby="ing-h">
+      <h2 id="ing-h" class="section-h">Ingredients</h2>
+      {% for g in r.ingredient_groups %}
+      {% if g.name %}<h3 class="group-h">{{ g.name }}</h3>{% endif %}
+      <ul class="list checklist">
+        {% for ing in g["items"] %}
+        <li>
+          <label>
+            <input type="checkbox">
+            <span class="ing"><b>{{ ing.amount }}</b> {{ ing.item|link_notes(r) }}</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endfor %}
+    </section>
+  </div>
 
   <section class="steps" aria-labelledby="steps-h">
     <h2 id="steps-h" class="section-h">Steps</h2>
@@ -50,14 +84,18 @@
     <ol class="list step-list">
       {% for step in g.steps %}
       {% set n.i = n.i + 1 %}
-      <li class="step" tabindex="0"><span class="step-n">{{ n.i }}</span><p>{{ step|amounts(r) }}</p></li>
+      <li class="step" tabindex="0"><span class="step-n">{{ n.i }}</span><p>{{ step|step(r) }}</p></li>
       {% endfor %}
     </ol>
     {% endfor %}
 
     {% if r.notes %}
-    <h2 class="section-h">Notes</h2>
-    <div class="list notes">{{ r.notes }}</div>
+    <h2 class="section-h" id="notes">Notes</h2>
+    <div class="list notes">
+      {% for anchor, para in r.notes|note_paragraphs %}
+      <p{% if anchor %} id="{{ anchor }}"{% endif %}>{{ para }}</p>
+      {% endfor %}
+    </div>
     {% endif %}
   </section>
 </div>

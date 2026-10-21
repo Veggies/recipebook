@@ -13,8 +13,14 @@ Every recipe must follow these, whether scraped, typed, or written by Claude:
 - **Every step states the amount of each ingredient it uses**, in parentheses right after
   the ingredient: `Stir in the cumin (1 tsp) and paprika (2 tsp).` If a step uses only part
   of an ingredient, give that part: `Add half the butter (2 tbsp).`
+- **Every list gets a heading when there's more than one component.** Name the main group after
+  what it makes ("Cupcakes", "Chili"), and give step groups the same names as their ingredient groups.
 - Ingredient `amount` holds quantity + unit only ("2 1/4 cups"); prep notes stay in `item`
-  ("all-purpose flour, sifted").
+  ("all-purpose flour, sifted"). Keep cues like "softened to room temperature", "thawed", "diced"
+  in `item` - the "Before You Start" section is built from them.
+- **American kitchen:** US units first (cups, oz, lb); never Celsius or gas marks (stripped on save).
+- If steps reference "Note 3", the note text must be in `notes` as a paragraph starting "3. ";
+  otherwise remove the reference.
 - Times are integer minutes. Tags are lowercase.
 
 ## Working with the live recipe list

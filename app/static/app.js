@@ -56,3 +56,21 @@ document.querySelectorAll("form[data-confirm]").forEach((form) => {
     if (!confirm(form.dataset.confirm)) e.preventDefault();
   });
 });
+
+// Appearance: Auto follows the system; Light/Dark are remembered on this device.
+const themeButtons = document.querySelectorAll("[data-theme-choice]");
+const applyTheme = (choice) => {
+  if (choice === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = choice;
+  themeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeChoice === choice)));
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.content = choice === "dark" ? "#000000" : choice === "light" ? "#f2f2f7" : m.media.includes("dark") ? "#000000" : "#f2f2f7";
+  });
+};
+let savedTheme = "auto";
+try { savedTheme = localStorage.getItem("theme") || "auto"; } catch {}
+applyTheme(savedTheme);
+themeButtons.forEach((b) => b.addEventListener("click", () => {
+  try { localStorage.setItem("theme", b.dataset.themeChoice); } catch {}
+  applyTheme(b.dataset.themeChoice);
+}));
