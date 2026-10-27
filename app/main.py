@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -104,6 +105,10 @@ templates.env.filters["step"] = render_step
 templates.env.filters["note_paragraphs"] = note_paragraphs
 templates.env.filters["minutes"] = fmt_minutes
 templates.env.globals["categories"] = CATEGORIES
+# Static URLs carry a hash of the file, so a new image never runs against a phone's cached copy.
+templates.env.globals["asset_version"] = {
+    f.name: hashlib.sha256(f.read_bytes()).hexdigest()[:10] for f in (APP_DIR / "static").glob("*.*")
+}
 templates.env.filters["serves"] = lambda v: re.sub(r"\s*(servings?|serves|people|portions)$", "", str(v), flags=re.IGNORECASE)
 
 
@@ -137,10 +142,11 @@ def index(request: Request, q: str = "", tag: str = "", category: str = ""):
     # Only offer the categories that have something in them.
     used = {r.get("category") for r in recipes}
     categories = [c for c in CATEGORIES if c in used]
-    if category:
-        recipes = [r for r in recipes if r.get("category") == category]
+    # Every recipe is sent; the category only decides which start hidden, so the pills
+    # can switch in place without a reload.
+    shown = sum(1 for r in recipes if not category or r.get("category") == category)
     return templates.TemplateResponse(request, "index.html", {
-        "recipes": recipes, "q": q, "tag": tag, "category": category, "categories": categories,
+        "recipes": recipes, "shown": shown, "q": q, "tag": tag, "category": category, "categories": categories,
     })
 
 

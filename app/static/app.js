@@ -16,7 +16,7 @@ if (bar && largeTitle && "IntersectionObserver" in window) {
 const markNav = (kind) => { try { sessionStorage.setItem("nav", kind); } catch {} };
 document.addEventListener("click", (e) => {
   const a = e.target.closest("a[href]");
-  if (!a || a.target || a.origin !== location.origin || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  if (!a || e.defaultPrevented || a.target || a.origin !== location.origin || e.metaKey || e.ctrlKey || e.shiftKey) return;
   const kind = a.dataset.nav || "push";
   if (kind !== "tab") markNav(kind);
 });
@@ -139,6 +139,25 @@ themeButtons.forEach((b) => b.addEventListener("click", () => {
   try { localStorage.setItem("theme", b.dataset.themeChoice); } catch {}
   applyTheme(b.dataset.themeChoice);
 }));
+
+// Home: category pills filter the list in place; the URL follows so reload and back still work.
+const categoryNav = document.querySelector(".categories");
+if (categoryNav) {
+  categoryNav.addEventListener("click", (e) => {
+    const pill = e.target.closest("a[data-category]");
+    if (!pill || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    const pick = pill.dataset.category;
+    categoryNav.querySelectorAll("a").forEach((a) => {
+      a.classList.toggle("on", a === pill);
+      a.toggleAttribute("aria-current", a === pill);
+    });
+    document.querySelectorAll(".cards > li").forEach((li) => { li.hidden = pick && li.dataset.category !== pick; });
+    const field = document.querySelector('.search input[name="category"]');
+    if (field) field.value = pick;
+    history.replaceState(null, "", pill.href);
+  });
+}
 
 // Shopping list, step 1: the button shows how many recipes are picked.
 const pickForm = document.querySelector(".pick-form");

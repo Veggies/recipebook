@@ -29,7 +29,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/style.css?v=15">
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_version['style.css'] }}">
   <title>{% block title %}Recipe Book{% endblock %}</title>
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -50,6 +50,6 @@
     <a href="/add" data-nav="tab" {% if active_tab == "add" %}aria-current="page"{% endif %}>{{ icon("plus") }}<span>Add</span></a>
   </nav>
   {% endblock %}
-  <script src="/static/app.js?v=10" defer></script>
+  <script src="/static/app.js?v={{ asset_version['app.js'] }}" defer></script>
 </body>
 </html>

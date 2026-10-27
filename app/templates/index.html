@@ -8,15 +8,15 @@
 <form class="search" action="/" method="get" role="search">
   <input type="search" name="q" value="{{ q }}" placeholder="Search" autocomplete="off" enterkeyhint="search">
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
-  {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+  <input type="hidden" name="category" value="{{ category }}">
 </form>
 
 {% if categories|length > 1 or category %}
 <nav class="categories" aria-label="Categories">
   {% set base = "/?" ~ ({"q": q, "tag": tag}|urlencode) %}
-  <a class="chip{% if not category %} on{% endif %}" href="{{ base }}">All</a>
+  <a class="chip{% if not category %} on{% endif %}" href="{{ base }}" data-category=""{% if not category %} aria-current="true"{% endif %}>All</a>
   {% for c in categories %}
-  <a class="chip{% if c == category %} on{% endif %}" href="{{ base }}&category={{ c|urlencode }}"{% if c == category %} aria-current="true"{% endif %}>{{ c }}</a>
+  <a class="chip{% if c == category %} on{% endif %}" href="{{ base }}&category={{ c|urlencode }}" data-category="{{ c }}"{% if c == category %} aria-current="true"{% endif %}>{{ c }}</a>
   {% endfor %}
 </nav>
 {% endif %}
@@ -25,10 +25,10 @@
 <p class="filter-row">Showing: <b>{{ tag }}</b> <a href="/?q={{ q|urlencode }}&category={{ category|urlencode }}" aria-label="Clear tag filter">✕</a></p>
 {% endif %}
 
-{% if recipes %}
+{% if shown %}
 <ul class="cards">
   {% for r in recipes %}
-  <li>
+  <li data-category="{{ r.category }}"{% if category and r.category != category %} hidden{% endif %}>
     <a class="card" href="/r/{{ r.id }}">
       {% if r.image_url %}
       <img class="card-img" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">

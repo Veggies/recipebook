@@ -1,4 +1,5 @@
 import importlib
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -69,7 +70,10 @@ def test_category_filter_on_home(client):
     home = client.get("/").text
     assert ">Desserts</a>" in home and ">Dinner</a>" in home and ">Salads</a>" not in home
     desserts = client.get("/?category=Desserts").text
-    assert "Brownies" in desserts and "Chili" not in desserts
+    assert '<li data-category="Desserts">' in desserts and '<li data-category="Dinner" hidden>' in desserts
+    assert "No recipes match" in client.get("/?category=Breakfast").text
+    # Static files are cache-busted by content, not a hand-bumped number.
+    assert re.search(r'/static/app\.js\?v=[0-9a-f]{10}"', home)
     assert [r["category"] for r in client.get("/api/recipes").json()] == ["", "Desserts", "Dinner"]
 
 
