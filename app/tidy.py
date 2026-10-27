@@ -13,7 +13,7 @@ _CELSIUS_RES = [
     re.compile(r"\s*[/,]?\s*\(?gas mark \d+\)?", re.IGNORECASE),
 ]
 # Broad, one-per-recipe shelves for browsing; finer detail goes in tags.
-CATEGORIES = ["Breakfast", "Dinner", "Soups", "Salads", "Sides", "Desserts", "Snacks", "Drinks", "Sauces"]
+CATEGORIES = ["Breakfast", "Dinner", "Salads", "Sides", "Desserts", "Snacks", "Drinks", "Sauces"]
 _STOPWORDS = {"the", "and", "for", "make", "making", "meanwhile", "with", "your", "to", "of", "a"}
 
 

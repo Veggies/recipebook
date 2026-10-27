@@ -30,7 +30,7 @@ def test_category_matches_known_list():
     def category(value):
         return tidy_recipe({"title": "Toast", "category": value, "ingredient_groups": [], "step_groups": []})["category"]
     assert category("dessert") == "Desserts"
-    assert category(" SOUP ") == "Soups"
+    assert category(" SALAD ") == "Salads"
     assert category("Dinner") == "Dinner"
     assert category("Brunch") == ""
     assert category(None) == ""

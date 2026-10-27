@@ -66,7 +66,7 @@ def test_category_filter_on_home(client):
     add("Brownies", "dessert")
     add("Chili", "Dinner")
     home = client.get("/").text
-    assert ">Desserts</a>" in home and ">Dinner</a>" in home and ">Soups</a>" not in home
+    assert ">Desserts</a>" in home and ">Dinner</a>" in home and ">Sauces</a>" not in home
     desserts = client.get("/?category=Desserts").text
     assert "Brownies" in desserts and "Chili" not in desserts
     assert [r["category"] for r in client.get("/api/recipes").json()] == ["Desserts", "Dinner"]
