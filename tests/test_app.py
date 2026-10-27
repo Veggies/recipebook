@@ -65,11 +65,12 @@ def test_category_filter_on_home(client):
                                           "ingredient_groups": [], "step_groups": []})
     add("Brownies", "dessert")
     add("Chili", "Dinner")
+    add("Aioli", "Sauces")
     home = client.get("/").text
-    assert ">Desserts</a>" in home and ">Dinner</a>" in home and ">Sauces</a>" not in home
+    assert ">Desserts</a>" in home and ">Dinner</a>" in home and ">Salads</a>" not in home
     desserts = client.get("/?category=Desserts").text
     assert "Brownies" in desserts and "Chili" not in desserts
-    assert [r["category"] for r in client.get("/api/recipes").json()] == ["Desserts", "Dinner"]
+    assert [r["category"] for r in client.get("/api/recipes").json()] == ["", "Desserts", "Dinner"]
 
 
 def test_step_sections_are_kept():

@@ -23,8 +23,8 @@ Every recipe must follow these, whether scraped, typed, or written by Claude:
   "see Notes"). `notes` is only for notes the user asks to add.
 - Times are integer minutes. Tags are lowercase.
 - **One broad `category` per recipe**, from the fixed list in `app/tidy.py` (Breakfast, Dinner,
-  Salads, Sides, Desserts, Snacks, Drinks, Sauces); anything else is dropped on save. Soups count as
-  Dinner. Tags hold the finer detail ("soup", "chicken", "slow cooker").
+  Salads, Sides, Desserts, Snacks, Drinks); anything else is dropped on save. Think broadly: soups
+  are Dinner, a dressing is Salads, a sauce goes with the dish it's for. Tags hold the finer detail ("soup", "chicken", "slow cooker").
 
 ## Shopping list
 
