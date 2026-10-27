@@ -63,7 +63,13 @@
       <label>Cook<input id="cook_time" type="number" inputmode="numeric" min="0" value="{{ r.cook_time or '' if r }}" placeholder="min"></label>
       <label>Total<input id="total_time" type="number" inputmode="numeric" min="0" value="{{ r.total_time or '' if r }}" placeholder="min"></label>
     </li>
-    <li class="field"><label for="tags">Tags</label><input id="tags" type="text" value="{{ r.tags|join(', ') if r else '' }}" placeholder="dinner, soup" autocapitalize="none"></li>
+    <li class="field"><label for="category">Category</label>
+      <select id="category">
+        <option value="">None</option>
+        {% for c in categories %}<option{% if r and r.category == c %} selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+    </li>
+    <li class="field"><label for="tags">Tags</label><input id="tags" type="text" value="{{ r.tags|join(', ') if r else '' }}" placeholder="chicken, slow cooker" autocapitalize="none"></li>
   </ul>
 
   <h2 class="section-h">Ingredients</h2>

@@ -15,7 +15,7 @@ from . import db, textformat
 from .images import ImageError, save_upload
 from .ingredients import parse_ingredient, short_amount
 from .prep import before_you_start
-from .tidy import tidy_recipe
+from .tidy import CATEGORIES, tidy_recipe
 from .scrape import ScrapeError, scrape
 from .shopping import build_shopping_list
 
@@ -103,6 +103,7 @@ def fmt_minutes(minutes) -> str:
 templates.env.filters["step"] = render_step
 templates.env.filters["note_paragraphs"] = note_paragraphs
 templates.env.filters["minutes"] = fmt_minutes
+templates.env.globals["categories"] = CATEGORIES
 templates.env.filters["serves"] = lambda v: re.sub(r"\s*(servings?|serves|people|portions)$", "", str(v), flags=re.IGNORECASE)
 
 
@@ -129,11 +130,18 @@ def manifest():
 
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, q: str = "", tag: str = ""):
+def index(request: Request, q: str = "", tag: str = "", category: str = ""):
     recipes = db.list_recipes(q)
     if tag:
         recipes = [r for r in recipes if tag in r.get("tags", [])]
-    return templates.TemplateResponse(request, "index.html", {"recipes": recipes, "q": q, "tag": tag})
+    # Only offer the categories that have something in them.
+    used = {r.get("category") for r in recipes}
+    categories = [c for c in CATEGORIES if c in used]
+    if category:
+        recipes = [r for r in recipes if r.get("category") == category]
+    return templates.TemplateResponse(request, "index.html", {
+        "recipes": recipes, "q": q, "tag": tag, "category": category, "categories": categories,
+    })
 
 
 @app.get("/r/{recipe_id}", response_class=HTMLResponse)
@@ -198,6 +206,7 @@ def recipe_from_form(form: dict, existing: dict | None = None) -> dict:
         "prep_time": minutes(form.get("prep_time")),
         "cook_time": minutes(form.get("cook_time")),
         "total_time": minutes(form.get("total_time")),
+        "category": form.get("category", ""),
         "tags": [t.strip().lower() for t in form.get("tags", "").split(",") if t.strip()],
         "ingredient_groups": [g for g in groups if g["items"]],
         "step_groups": [g for g in steps if g["steps"]],
@@ -303,6 +312,7 @@ class RecipeIn(BaseModel):
     prep_time: int | None = None
     cook_time: int | None = None
     total_time: int | None = None
+    category: str = ""
     tags: list[str] = Field(default_factory=list)
     ingredient_groups: list[IngredientGroup]
     step_groups: list[StepGroup]
@@ -318,7 +328,7 @@ class ImportIn(BaseModel):
 def api_list(q: str = "", status: str | None = None):
     return [
         {"id": r["id"], "title": r["title"], "status": r["status"], "source_url": r.get("source_url", ""),
-         "tags": r.get("tags", []), "updated_at": r["updated_at"]}
+         "category": r.get("category", ""), "tags": r.get("tags", []), "updated_at": r["updated_at"]}
         for r in db.list_recipes(q, status)
     ]
 

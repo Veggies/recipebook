@@ -8,10 +8,21 @@
 <form class="search" action="/" method="get" role="search">
   <input type="search" name="q" value="{{ q }}" placeholder="Search" autocomplete="off" enterkeyhint="search">
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+  {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
 </form>
 
+{% if categories|length > 1 or category %}
+<nav class="categories" aria-label="Categories">
+  {% set base = "/?" ~ ({"q": q, "tag": tag}|urlencode) %}
+  <a class="chip{% if not category %} on{% endif %}" href="{{ base }}">All</a>
+  {% for c in categories %}
+  <a class="chip{% if c == category %} on{% endif %}" href="{{ base }}&category={{ c|urlencode }}"{% if c == category %} aria-current="true"{% endif %}>{{ c }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
 {% if tag %}
-<p class="filter-row">Showing: <b>{{ tag }}</b> <a href="/?q={{ q|urlencode }}" aria-label="Clear tag filter">✕</a></p>
+<p class="filter-row">Showing: <b>{{ tag }}</b> <a href="/?q={{ q|urlencode }}&category={{ category|urlencode }}" aria-label="Clear tag filter">✕</a></p>
 {% endif %}
 
 {% if recipes %}
@@ -38,7 +49,7 @@
 </ul>
 {% else %}
 <div class="empty">
-  {% if q or tag %}
+  {% if q or tag or category %}
   <p>No recipes match.</p>
   {% else %}
   <p>No recipes yet.</p>

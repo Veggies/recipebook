@@ -22,6 +22,9 @@ Every recipe must follow these, whether scraped, typed, or written by Claude:
 - **No blog notes.** Don't import a site's notes section, and remove references to it ("Note 3",
   "see Notes"). `notes` is only for notes the user asks to add.
 - Times are integer minutes. Tags are lowercase.
+- **One broad `category` per recipe**, from the fixed list in `app/tidy.py` (Breakfast, Dinner,
+  Soups, Salads, Sides, Desserts, Snacks, Drinks, Sauces); anything else is dropped on save. Tags hold
+  the finer detail ("chicken", "slow cooker").
 
 ## Shopping list
 
@@ -54,7 +57,7 @@ python3 scripts/rb.py restore backup.json  # into RECIPEBOOK_URL; skips titles a
 
 **"Clean up pending recipes"** means: for each `needs_review` recipe, regroup ingredients by
 component, split steps into matching groups, make every step state its amounts per the
-rules above, fix obvious scraping junk, add a few tags, set `"status": "ready"`, and `put` it back.
+rules above, fix obvious scraping junk, set the category, add a few tags, set `"status": "ready"`, and `put` it back.
 Keep the scratch JSON files in the session scratchpad, not the repo.
 
 JSON shape: see `RecipeIn` in `app/main.py`.

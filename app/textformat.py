@@ -2,7 +2,8 @@
 
     Title: Chocolate Cake
     Servings: 8
-    Tags: dessert, cake
+    Category: Desserts
+    Tags: cake
 
     == Ingredients: Cake batter ==
     2 1/4 cups | all-purpose flour
@@ -24,7 +25,7 @@ from .ingredients import parse_ingredient
 FIELDS = {
     "title": "Title", "servings": "Servings", "prep_time": "Prep minutes",
     "cook_time": "Cook minutes", "total_time": "Total minutes", "source_url": "Source",
-    "image_url": "Image", "tags": "Tags", "description": "Description",
+    "image_url": "Image", "category": "Category", "tags": "Tags", "description": "Description",
 }
 _LABEL_TO_FIELD = {v.lower(): k for k, v in FIELDS.items()}
 _SECTION_RE = re.compile(r"^==\s*(ingredients|steps|notes)\s*(?::\s*(.*?))?\s*==$", re.IGNORECASE)

@@ -12,6 +12,8 @@ _CELSIUS_RES = [
     re.compile(rf"{_C}\s*/\s*(?=\d)"),
     re.compile(r"\s*[/,]?\s*\(?gas mark \d+\)?", re.IGNORECASE),
 ]
+# Broad, one-per-recipe shelves for browsing; finer detail goes in tags.
+CATEGORIES = ["Breakfast", "Dinner", "Soups", "Salads", "Sides", "Desserts", "Snacks", "Drinks", "Sauces"]
 _STOPWORDS = {"the", "and", "for", "make", "making", "meanwhile", "with", "your", "to", "of", "a"}
 
 
@@ -23,6 +25,7 @@ def strip_celsius(text: str) -> str:
 
 def tidy_recipe(recipe: dict) -> dict:
     recipe["title"] = (recipe.get("title") or "").strip() or "Untitled recipe"
+    recipe["category"] = _category(recipe.get("category"))
     for key in ("description", "notes"):
         recipe[key] = strip_celsius(recipe.get(key) or "")
     ingredient_groups = recipe.get("ingredient_groups", [])
@@ -37,6 +40,12 @@ def tidy_recipe(recipe: dict) -> dict:
     _name_unnamed_groups(recipe["title"], step_groups)
     recipe["step_groups"] = annotate_steps(ingredient_groups, step_groups)
     return recipe
+
+
+def _category(value: str | None) -> str:
+    """Case-insensitive match to a known category ("dessert" -> "Desserts"); anything else is dropped."""
+    key = (value or "").strip().lower().rstrip("s")
+    return next((c for c in CATEGORIES if c.lower().rstrip("s") == key), "")
 
 
 def _match_step_group_names(ingredient_groups: list[dict], step_groups: list[dict]) -> None:

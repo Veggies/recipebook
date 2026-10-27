@@ -4,7 +4,8 @@ RECIPE = {
     "title": "Carrot Cake",
     "servings": "12",
     "prep_time": 30,
-    "tags": ["dessert", "cake"],
+    "category": "Desserts",
+    "tags": ["cake"],
     "ingredient_groups": [
         {"name": "Cake", "items": [{"amount": "2 cups", "item": "flour"}, {"amount": "", "item": "pinch of salt"}]},
         {"name": "Frosting", "items": [{"amount": "8 oz", "item": "cream cheese, softened"}]},

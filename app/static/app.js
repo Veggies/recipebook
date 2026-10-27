@@ -407,7 +407,7 @@ if (editor) {
     editor.elements.recipe.value = JSON.stringify({
       title: value("title"), description: value("description"), image_url: imageUrl.value,
       servings: value("servings"), prep_time: value("prep_time"), cook_time: value("cook_time"),
-      total_time: value("total_time"), tags: value("tags"), notes: value("notes"),
+      total_time: value("total_time"), category: value("category"), tags: value("tags"), notes: value("notes"),
       needs_review: !!editor.querySelector("#needs_review")?.checked,
       ingredient_groups: collect("ingredients"), step_groups: collect("steps"),
     });

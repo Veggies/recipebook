@@ -26,6 +26,16 @@ def test_group_headings():
     assert [g["name"] for g in recipe["step_groups"]] == ["Carrot Cupcakes", "Cream Cheese Frosting"]
 
 
+def test_category_matches_known_list():
+    def category(value):
+        return tidy_recipe({"title": "Toast", "category": value, "ingredient_groups": [], "step_groups": []})["category"]
+    assert category("dessert") == "Desserts"
+    assert category(" SOUP ") == "Soups"
+    assert category("Dinner") == "Dinner"
+    assert category("Brunch") == ""
+    assert category(None) == ""
+
+
 def test_single_group_stays_unnamed():
     recipe = tidy_recipe({"title": "Toast", "ingredient_groups": [{"name": "", "items": []}], "step_groups": []})
     assert recipe["ingredient_groups"][0]["name"] == ""

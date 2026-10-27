@@ -59,6 +59,19 @@ def test_api_crud(client):
     assert client.delete(f"/api/recipes/{created['id']}").status_code == 204
 
 
+def test_category_filter_on_home(client):
+    def add(title, category):
+        client.post("/api/recipes", json={"title": title, "category": category,
+                                          "ingredient_groups": [], "step_groups": []})
+    add("Brownies", "dessert")
+    add("Chili", "Dinner")
+    home = client.get("/").text
+    assert ">Desserts</a>" in home and ">Dinner</a>" in home and ">Soups</a>" not in home
+    desserts = client.get("/?category=Desserts").text
+    assert "Brownies" in desserts and "Chili" not in desserts
+    assert [r["category"] for r in client.get("/api/recipes").json()] == ["Desserts", "Dinner"]
+
+
 def test_step_sections_are_kept():
     from app.scrape import _sectioned_steps
     raw = [
@@ -139,7 +152,7 @@ def test_form_editor_round_trip(client):
     assert 'value="1 (3 to 4 lb) chuck roast"' in client.get(f"/r/{created['id']}/edit").text
     form = {
         "title": "Ranch Roast", "description": "", "image_url": "/images/x.jpg", "servings": "8",
-        "prep_time": "5", "cook_time": "480", "total_time": "", "tags": "Beef, Slow Cooker", "notes": "",
+        "prep_time": "5", "cook_time": "480", "total_time": "", "category": "Dinner", "tags": "Beef, Slow Cooker", "notes": "",
         "needs_review": False,
         "ingredient_groups": [{"name": "", "items": [
             {"line": "1 (3 to 4 lb) chuck roast", "amount": "1 (3 to 4 lb)", "item": "chuck roast"},  # untouched
@@ -155,7 +168,7 @@ def test_form_editor_round_trip(client):
         {"amount": "1 (3 to 4 lb)", "item": "chuck roast"}, {"amount": "1 packet", "item": "ranch dressing mix"},
     ]
     assert saved["step_groups"][0]["steps"] == ["Sprinkle the ranch dressing mix (1 packet) over the roast (1)."]
-    assert saved["tags"] == ["beef", "slow cooker"] and saved["cook_time"] == 480 and saved["total_time"] is None
+    assert saved["category"] == "Dinner" and saved["tags"] == ["beef", "slow cooker"] and saved["cook_time"] == 480 and saved["total_time"] is None
     assert saved["source_url"] == "https://example.com/r" and saved["image_url"] == "/images/x.jpg"
 
 
